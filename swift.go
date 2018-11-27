@@ -23,7 +23,7 @@ func NewSwift(c Config) *Swift {
 
 func (s *Swift) Init() error {
 	// Make sure whether the container exists
-	ojs, err := s.getOjsClient()
+	ojs, err := s.getObjectStorageClient()
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (s *Swift) Init() error {
 }
 
 func (s *Swift) CreateContainer() (err error) {
-	client, err := s.getOjsClient()
+	client, err := s.getObjectStorageClient()
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (s *Swift) CreateContainer() (err error) {
 }
 
 func (s *Swift) DeleteContainer() (err error) {
-	client, err := s.getOjsClient()
+	client, err := s.getObjectStorageClient()
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (s *Swift) DeleteContainer() (err error) {
 }
 
 func (s *Swift) List() (ls []objects.Object, err error) {
-	client, err := s.getOjsClient()
+	client, err := s.getObjectStorageClient()
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (s *Swift) List() (ls []objects.Object, err error) {
 }
 
 func (s *Swift) Get(name string) (header *objects.GetHeader, err error) {
-	client, err := s.getOjsClient()
+	client, err := s.getObjectStorageClient()
 	if err != nil {
 		return nil, err
 	}
@@ -120,18 +120,21 @@ func (s *Swift) Get(name string) (header *objects.GetHeader, err error) {
 	return objects.Get(client, s.config.Container, name, objects.GetOpts{}).Extract()
 }
 
-func (s *Swift) Download(name string) (content io.ReadCloser, err error) {
-	client, err := s.getOjsClient()
+func (s *Swift) Download(name string) (content *UnbufferedReader, err error) {
+	client, err := s.getObjectStorageClient()
 	if err != nil {
 		return nil, err
 	}
 
 	rs := objects.Download(client, s.config.Container, name, objects.DownloadOpts{})
-	return rs.Body, nil
+	if rs.Err != nil {
+		return nil, rs.Err
+	}
+	return &UnbufferedReader{R: rs.Body}, nil
 }
 
 func (s *Swift) Put(name string, content io.Reader) error {
-	client, err := s.getOjsClient()
+	client, err := s.getObjectStorageClient()
 	if err != nil {
 		return err
 	}
@@ -163,7 +166,7 @@ func (s *Swift) Put(name string, content io.Reader) error {
 	return nil
 }
 
-func (s *Swift) getOjsClient() (*gophercloud.ServiceClient, error) {
+func (s *Swift) getObjectStorageClient() (*gophercloud.ServiceClient, error) {
 	auth, err := s.getAuthClient()
 	if err != nil {
 		return nil, err

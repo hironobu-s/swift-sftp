@@ -8,12 +8,14 @@ import (
 	"testing"
 
 	"github.com/k0kubun/pp"
+	"github.com/pkg/sftp"
 )
 
 var (
 	testfile = "testfile.txt"
 	tmpfile  = "tmp_testfile.txt"
 	s        *Swift
+	fs       sftp.Handlers
 )
 
 func TestMain(m *testing.M) {
@@ -29,6 +31,9 @@ func TestMain(m *testing.M) {
 
 	// Recreate swift for testing
 	s = NewSwift(c)
+
+	// fs
+	fs = NewSwiftFS(s)
 
 	// run
 	code := m.Run()
@@ -96,7 +101,7 @@ func TestPut(t *testing.T) {
 	}
 }
 func TestGet(t *testing.T) {
-	header, err := s.Get(testfile)
+	header, err := s.Get(testfile + "hosiejro")
 	if err != nil {
 		t.Errorf("%v\n", err)
 		t.Fail()

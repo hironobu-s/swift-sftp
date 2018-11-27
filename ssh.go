@@ -16,6 +16,12 @@ func StartServer(conf Config) error {
 		return err
 	}
 
+	// swift
+	swift := NewSwift(conf)
+	if err = swift.Init(); err != nil {
+		return err
+	}
+
 	// Start server
 	listenAddr := fmt.Sprintf("%s:%d", conf.ListenAddress, conf.ListenPort)
 	listener, err := net.Listen("tcp", listenAddr)
@@ -31,11 +37,16 @@ func StartServer(conf Config) error {
 		}
 
 		log.Infof("Accept a client from %s", nConn.RemoteAddr())
-		go handleClient(nConn, sConf)
+		go func() {
+			err := handleClient(conf, sConf, swift, nConn)
+			if err != nil {
+				log.Warnf("Client error: %v", err)
+			}
+		}()
 	}
 }
 
-func handleClient(nConn net.Conn, sConf *ssh.ServerConfig) error {
+func handleClient(conf Config, sConf *ssh.ServerConfig, swift *Swift, nConn net.Conn) error {
 	_, chans, reqs, err := ssh.NewServerConn(nConn, sConf)
 	if err != nil {
 		return err
@@ -71,7 +82,7 @@ func handleClient(nConn net.Conn, sConf *ssh.ServerConfig) error {
 		}(requests)
 
 		// sftp
-		if err = StartSftpSession(channel); err != nil {
+		if err = StartSftpSession(swift, channel); err != nil {
 			return err
 		}
 	}

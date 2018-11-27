@@ -2,28 +2,24 @@ package main
 
 import (
 	"io"
-	"os"
 
 	"github.com/pkg/sftp"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
-func StartSftpSession(channel ssh.Channel) error {
-	log.Info("Start sftp session")
-	sftpOptions := []sftp.ServerOption{
-		sftp.WithDebug(os.Stdout),
-		sftp.ReadOnly(),
-	}
+func StartSftpSession(swift *Swift, channel ssh.Channel) (err error) {
+	log.Debug("Start sftp session")
 
-	server, err := sftp.NewServer(channel, sftpOptions...)
-	if err != nil {
-		return err
-	}
+	fs := NewSwiftFS(swift)
+	//fs := sftp.InMemHandler()
+	server := sftp.NewRequestServer(channel, fs)
+
+	log.Debug("Initialized sftp server")
 
 	if err = server.Serve(); err == io.EOF {
-		log.Info("End sftp session")
-		return nil
+		log.Debug("End sftp session")
+		return server.Close()
 
 	} else if err != nil {
 		return err

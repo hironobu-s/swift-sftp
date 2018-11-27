@@ -27,12 +27,15 @@ func main() {
 }
 
 func server(c *cli.Context) (err error) {
+	enableDebugTransport()
+
 	log.SetLevel(log.DebugLevel)
 	log.Info("Starting server...")
 
 	conf := Config{
 		ListenAddress: "127.0.0.1",
 		ListenPort:    10022,
+		Container:     "test",
 	}
 
 	if conf.ServerPrivateKeyPath, err = filepath.Abs("./misc/server.key"); err != nil {
@@ -47,9 +50,29 @@ func server(c *cli.Context) (err error) {
 }
 
 type Config struct {
+	// generic options
+	CreateContainerIfNotExists bool
+
+	// network parameters
 	ListenAddress string
 	ListenPort    int
 
+	// ssh keys
 	ServerPrivateKeyPath string
 	AuthorizedKeysPath   string
+
+	// Required parameters for OpenStack
+	Container string
+	Region    string
+
+	// Optional parameters for OpenStack
+	// If those are not given, We use environment variables like OS_USERNAME to authenticate the client.
+	IdentityEndpoint string
+	UserID           string
+	Username         string
+	Password         string
+	DomainID         string
+	DomainName       string
+	TenantID         string
+	TenantName       string
 }
