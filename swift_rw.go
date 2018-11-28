@@ -7,14 +7,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	ModeReader = iota + 1
+	ModeWriter
+)
+
 // swiftReadWriter implements both interfaces, io.ReadAt and io.WriteAt.
 type swiftReadWriter struct {
 	swift   *Swift
 	sf      *SwiftFile
 	tmpfile *os.File
+
+	mode int
 }
 
 func (rw *swiftReadWriter) ReadAt(p []byte, off int64) (n int, err error) {
+	rw.mode = ModeReader
+
 	if rw.tmpfile == nil {
 		log.Debugf("Download content from object storage. [name=%s]", rw.sf.Name())
 
@@ -56,6 +65,8 @@ func (rw *swiftReadWriter) ReadAt(p []byte, off int64) (n int, err error) {
 }
 
 func (rw *swiftReadWriter) WriteAt(p []byte, off int64) (n int, err error) {
+	rw.mode = ModeWriter
+
 	if rw.tmpfile == nil {
 		fname := rw.sf.TempFileName()
 		log.Debugf("Create tmpfile to write. [%s]", fname)
@@ -83,7 +94,17 @@ func (rw *swiftReadWriter) WriteAt(p []byte, off int64) (n int, err error) {
 func (rw *swiftReadWriter) Close() error {
 	log.Debugf("Close and delete tmpfile")
 
-	rw.tmpfile.Close()
+	defer rw.tmpfile.Close()
+
+	if rw.mode == ModeWriter {
+		err := rw.swift.Put(rw.sf.Name(), rw.tmpfile)
+		if err != nil {
+			log.Warnf("Cloudn't put content to object storage. [%s]", err.Error())
+			return err
+		}
+		log.Debugf("Success to upload the content. [name=%s, size=%d]", rw.sf.Name(), rw.sf.Size())
+	}
+
 	os.Remove(rw.tmpfile.Name())
 
 	return nil
