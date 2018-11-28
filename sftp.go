@@ -12,13 +12,18 @@ func StartSftpSession(swift *Swift, channel ssh.Channel) (err error) {
 	log.Debug("Start sftp session")
 
 	fs := NewSwiftFS(swift)
-	//fs := sftp.InMemHandler()
-	server := sftp.NewRequestServer(channel, fs)
+	handler := sftp.Handlers{fs, fs, fs, fs}
+
+	server := sftp.NewRequestServer(channel, handler)
 
 	log.Debug("Initialized sftp server")
 
 	if err = server.Serve(); err == io.EOF {
+		// Need to sync before close sftp session
+		fs.SyncWaitingFiles()
+
 		log.Debug("End sftp session")
+
 		return server.Close()
 
 	} else if err != nil {

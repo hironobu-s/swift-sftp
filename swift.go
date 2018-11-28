@@ -9,6 +9,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/objectstorage/v1/containers"
 	"github.com/gophercloud/gophercloud/openstack/objectstorage/v1/objects"
 	"github.com/gophercloud/gophercloud/pagination"
+	log "github.com/sirupsen/logrus"
 )
 
 type Swift struct {
@@ -36,6 +37,7 @@ func (s *Swift) Init() error {
 		}
 
 		for _, name := range names {
+			log.Debugf("Container found [name=%s]", name)
 			if name == s.config.Container {
 				exists = true
 				return false, nil
@@ -120,17 +122,23 @@ func (s *Swift) Get(name string) (header *objects.GetHeader, err error) {
 	return objects.Get(client, s.config.Container, name, objects.GetOpts{}).Extract()
 }
 
-func (s *Swift) Download(name string) (content io.ReadCloser, err error) {
+func (s *Swift) Download(name string) (content io.ReadCloser, size int64, err error) {
 	client, err := s.getObjectStorageClient()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	rs := objects.Download(client, s.config.Container, name, objects.DownloadOpts{})
 	if rs.Err != nil {
-		return nil, rs.Err
+		return nil, 0, rs.Err
 	}
-	return rs.Body, nil
+
+	info, err := rs.Extract()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return rs.Body, info.ContentLength, nil
 }
 
 func (s *Swift) Put(name string, content io.Reader) error {
