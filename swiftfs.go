@@ -356,6 +356,8 @@ func (rw *swiftReadWriter) ReadAt(p []byte, off int64) (n int, err error) {
 		}
 	}
 
+	log.Debugf("Read from tmpfile, offset=%d len=%d", off, len(p))
+
 	return rw.tmpfile.ReadAt(p, off)
 }
 
