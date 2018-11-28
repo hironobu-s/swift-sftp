@@ -8,14 +8,13 @@ import (
 	"testing"
 
 	"github.com/k0kubun/pp"
-	"github.com/pkg/sftp"
 )
 
 var (
 	testfile = "testfile.txt"
 	tmpfile  = "tmp_testfile.txt"
 	s        *Swift
-	fs       sftp.Handlers
+	fs       *SwiftFS
 )
 
 func TestMain(m *testing.M) {
