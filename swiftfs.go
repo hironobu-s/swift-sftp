@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	Separator = "/" // Separator of the object on the object storage
+	Delimiter = "/" // Delimiter is used to split object names.
 )
 
 // SwiftFS implements sftp.Handlers interface.
@@ -50,9 +50,6 @@ func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	} else if f == nil {
 		return nil, fmt.Errorf("File not found. [%s]", r.Filepath)
 	}
-
-	// // append f to waiting list
-	// fs.waitReadings = append(fs.waitReadings, f)
 
 	return &swiftReadWriter{
 		swift: fs.swift,
@@ -128,7 +125,7 @@ func (fs *SwiftFS) filepath2object(path string) string {
 	return path[1:]
 }
 func (fs *SwiftFS) object2filepath(name string) string {
-	return Separator + name
+	return Delimiter + name
 }
 
 // Return SwiftFile objects in the specific directory
@@ -229,16 +226,16 @@ func (f *SwiftFile) Abs() string {
 }
 
 func (f *SwiftFile) Dir() string {
-	if strings.HasSuffix(f.objectname, Separator) {
+	if strings.HasSuffix(f.objectname, Delimiter) {
 		// f.name is directory name
 		return f.objectname
 
-	} else if !strings.Contains(f.objectname, Separator) {
+	} else if !strings.Contains(f.objectname, Delimiter) {
 		// f.objectname is the file on root file path
-		return Separator
+		return Delimiter
 
 	} else {
-		pos := strings.LastIndex(f.objectname, Separator)
+		pos := strings.LastIndex(f.objectname, Delimiter)
 		return f.objectname[:pos+1]
 	}
 }
@@ -251,7 +248,7 @@ func (f *SwiftFile) TempFileName() string {
 
 // io.Fileinfo interface
 func (f *SwiftFile) Name() string {
-	pos := strings.LastIndex(f.objectname, Separator)
+	pos := strings.LastIndex(f.objectname, Delimiter)
 	return f.objectname[pos+1:]
 }
 
