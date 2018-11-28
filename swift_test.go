@@ -112,7 +112,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestDownload(t *testing.T) {
-	obj, err := s.Download(testfile)
+	obj, size, err := s.Download(testfile)
 	if err != nil {
 		t.Errorf("%v\n", err)
 		t.Fail()
@@ -123,6 +123,8 @@ func TestDownload(t *testing.T) {
 
 	if len(data1) != len(data2) {
 		t.Errorf("Size missmatched between the test data and downloaded content. [%d != %d]\n", len(data1), len(data2))
+	} else if size != len(data2) {
+		t.Errorf("Invalid size. [%d != %d]\n", size, len(data2))
 		t.Fail()
 	}
 }
