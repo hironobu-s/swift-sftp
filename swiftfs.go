@@ -58,10 +58,13 @@ func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		return nil, fmt.Errorf("File not found. [%s]", r.Filepath)
 	}
 
-	// append f to waiting list
-	fs.waitReadings = append(fs.waitReadings, f)
+	// // append f to waiting list
+	// fs.waitReadings = append(fs.waitReadings, f)
 
-	return f.Reader()
+	return &swiftReadWriter{
+		swift: fs.swift,
+		sf:    f,
+	}, nil
 }
 
 func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
@@ -75,7 +78,6 @@ func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	}
 
 	f := &SwiftFile{
-		swift:      fs.swift,
 		objectname: r.Filepath[1:], // strip slash
 		size:       0,
 		modtime:    time.Now(),
@@ -83,10 +85,10 @@ func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		isdir:      false,
 	}
 
-	// append f to waiting list
-	fs.waitWritings = append(fs.waitWritings, f)
-
-	return f.Writer()
+	return &swiftReadWriter{
+		swift: fs.swift,
+		sf:    f,
+	}, nil
 }
 
 func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
@@ -137,40 +139,6 @@ func (fs *SwiftFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	return nil, nil
 }
 
-func (fs *SwiftFS) SyncWaitingFiles() error {
-	for _, f := range fs.waitReadings {
-		log.Debugf("Delete temporary file. [%s]", f.tmpFile.Name())
-		f.tmpFile.Close()
-		os.Remove(f.tmpFile.Name())
-		f.tmpFile = nil
-	}
-
-	for _, f := range fs.waitWritings {
-		log.Debugf("Upload content to object storage. [name=%s, size=%d]", f.Name(), f.Size())
-
-		fn, err := os.OpenFile(f.tmpFile.Name(), os.O_RDONLY, 0600)
-		if err != nil {
-			return err
-		}
-
-		err = fs.swift.Put(f.objectname, fn)
-		if err != nil {
-			fn.Close()
-			log.Warnf("Upload error. %v", err)
-			return err
-		}
-		fn.Close()
-
-		os.Remove(f.tmpFile.Name())
-		f.tmpFile = nil
-		log.Debugf("Completed uploading and deleted a temprary file")
-	}
-
-	fs.waitReadings = make([]*SwiftFile, 0, 10)
-	fs.waitWritings = make([]*SwiftFile, 0, 10)
-	return nil
-}
-
 func (fs *SwiftFS) filepath2object(path string) string {
 	return path[1:]
 }
@@ -199,8 +167,6 @@ func (fs *SwiftFS) lookup(path string) (*SwiftFile, error) {
 	// root path is not on the object storage and return it manually.
 	if path == "/" {
 		f := &SwiftFile{
-			swift: fs.swift,
-
 			objectname: "",
 			modtime:    time.Now(),
 			isdir:      true,
@@ -215,7 +181,6 @@ func (fs *SwiftFS) lookup(path string) (*SwiftFile, error) {
 	}
 
 	f := &SwiftFile{
-		swift:      fs.swift,
 		objectname: name,
 		size:       header.ContentLength,
 		modtime:    header.LastModified,
@@ -238,7 +203,6 @@ func (fs *SwiftFS) allFiles() ([]*SwiftFile, error) {
 	files := make([]*SwiftFile, len(objs))
 	for i, obj := range objs {
 		files[i] = &SwiftFile{
-			swift:      fs.swift,
 			objectname: obj.Name,
 			size:       obj.Bytes,
 			modtime:    obj.LastModified,
@@ -263,11 +227,9 @@ func (f listerat) ListAt(ls []os.FileInfo, offset int64) (int, error) {
 	return n, nil
 }
 
-// SwiftFile implements os.FileInfo, os.Reader, os.Writer interfaces.
+// SwiftFile implements os.FileInfo interfaces.
 // There interfaces are necessary for sftp.Handlers.
 type SwiftFile struct {
-	swift *Swift
-
 	objectname string
 	size       int64
 	modtime    time.Time
@@ -351,65 +313,82 @@ func (f *SwiftFile) Sys() interface{} {
 	return stat{}
 }
 
-func (f *SwiftFile) Reader() (io.ReaderAt, error) {
-	log.Debugf("Download content from object storage. [name=%s]", f.Name())
-
-	body, size, err := f.swift.Download(f.Name())
-	if err != nil {
-		return nil, err
-	}
-	defer body.Close()
-
-	log.Debugf("Completed downloading. [size=%d]", size)
-
-	var tmpfile *os.File
-	tmpfilename := f.TempFileName()
-	log.Debugf("Temporary file for reading is '%s'.", tmpfilename)
-
-	wf, err := os.OpenFile(tmpfilename, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0600)
-	if err != nil {
-		log.Warnf("%v", err.Error())
-		return nil, err
-	}
-
-	_, err = io.Copy(wf, body)
-	if err != nil {
-		// close
-		wf.Close()
-
-		// delete tmp file
-		os.Remove(tmpfilename)
-
-		log.Warnf("%v", err.Error())
-		return nil, err
-	}
-	wf.Close()
-
-	// reopen tmporary file for reading
-	// Do not need to tmpfile.Close(). It'll be called in SwiftFS.sync()
-	tmpfile, err = os.OpenFile(tmpfilename, os.O_RDONLY, 0000)
-	if err != nil {
-		log.Warnf("%v", err.Error())
-		return nil, err
-	}
-
-	f.tmpFile = tmpfile
-
-	return f.tmpFile, nil
+// swiftReadWriter implements both interfaces, io.ReadAt and io.WriteAt.
+type swiftReadWriter struct {
+	swift   *Swift
+	sf      *SwiftFile
+	tmpfile *os.File
 }
 
-func (f *SwiftFile) Writer() (io.WriterAt, error) {
-	tmpfilename := f.TempFileName()
-	log.Debugf("Temporary file for writing is '%s'.", tmpfilename)
+func (rw *swiftReadWriter) ReadAt(p []byte, off int64) (n int, err error) {
+	if rw.tmpfile == nil {
+		log.Debugf("Download content from object storage. [name=%s]", rw.sf.Name())
 
-	// Do not need to call wf.Close(). It'll be called in SwiftFS.sync()
-	wf, err := os.OpenFile(tmpfilename, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0600)
-	if err != nil {
-		log.Warnf("%v", err.Error())
-		return nil, err
+		body, size, err := rw.swift.Download(rw.sf.Name())
+		if err != nil {
+			return 0, err
+		}
+		defer body.Close()
+		log.Debugf("Completed downloading. [size=%d]", size)
+
+		fname := rw.sf.TempFileName()
+		log.Debugf("Create tmpfile to read. [%s]", fname)
+
+		w, err := os.OpenFile(fname, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
+		if err != nil {
+			log.Warnf("%v", err.Error())
+			return 0, err
+		}
+		defer w.Close()
+
+		_, err = io.Copy(w, body)
+		if err != nil {
+			log.Warnf("%v", err.Error())
+			return 0, err
+		}
+
+		// Reopen tmporary file for reading
+		// Do not need to call tmpfile.Close(). It'll be called in swiftReadWriter.Close()
+		rw.tmpfile, err = os.OpenFile(fname, os.O_RDONLY, 0000)
+		if err != nil {
+			log.Warnf("%v", err.Error())
+			return 0, err
+		}
 	}
 
-	f.tmpFile = wf
+	return rw.tmpfile.ReadAt(p, off)
+}
 
-	return f.tmpFile, nil
+func (rw *swiftReadWriter) WriteAt(p []byte, off int64) (n int, err error) {
+	if rw.tmpfile == nil {
+		fname := rw.sf.TempFileName()
+		log.Debugf("Create tmpfile to write. [%s]", fname)
+
+		// Do not need to call tmpfile.Close(). It'll be called in swiftReadWriter.Close()
+		rw.tmpfile, err = os.OpenFile(fname, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
+		if err != nil {
+			log.Warnf("%v", err.Error())
+			return 0, err
+		}
+	}
+
+	log.Debugf("Write to tmpfile, offset=%d len=%d", off, len(p))
+
+	// write buffer to the temporary file
+	_, err = rw.tmpfile.WriteAt(p, off)
+	if err != nil {
+		log.Warnf("%v", err.Error())
+		return 0, err
+	}
+
+	return len(p), nil
+}
+
+func (rw *swiftReadWriter) Close() error {
+	log.Debugf("Close and delete tmpfile")
+
+	rw.tmpfile.Close()
+	os.Remove(rw.tmpfile.Name())
+
+	return nil
 }
