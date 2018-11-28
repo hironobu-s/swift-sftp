@@ -174,6 +174,15 @@ func (s *Swift) Put(name string, content io.Reader) error {
 	return nil
 }
 
+func (s *Swift) Delete(name string) (err error) {
+	client, err := s.getObjectStorageClient()
+	if err != nil {
+		return err
+	}
+
+	return objects.Delete(client, s.config.Container, name, objects.DeleteOpts{}).Err
+}
+
 func (s *Swift) getObjectStorageClient() (*gophercloud.ServiceClient, error) {
 	auth, err := s.getAuthClient()
 	if err != nil {

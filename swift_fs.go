@@ -74,7 +74,33 @@ func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 }
 
 func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
-	log.Debug("Calling Filecmd() in SwiftFS")
+	log.Debugf("file cmd method=%s filepath=%s", r.Method, r.Filepath)
+
+	if fs.mockErr != nil {
+		return fs.mockErr
+	}
+	fs.lock.Lock()
+	defer fs.lock.Unlock()
+
+	f, err := fs.lookup(r.Filepath)
+	if err != nil {
+		return err
+	}
+
+	switch r.Method {
+	case "Setstat":
+	case "Rename":
+	case "Rmdir":
+	case "Remove":
+		err = fs.swift.Delete(f.Name())
+		if err != nil {
+			return err
+		}
+		log.Debugf("Success to delete object. [name=%s]", f.Name())
+
+	case "Mkdir":
+	case "Symlink":
+	}
 	return nil
 }
 
