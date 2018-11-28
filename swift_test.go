@@ -123,7 +123,7 @@ func TestDownload(t *testing.T) {
 
 	if len(data1) != len(data2) {
 		t.Errorf("Size missmatched between the test data and downloaded content. [%d != %d]\n", len(data1), len(data2))
-	} else if size != len(data2) {
+	} else if int(size) != len(data2) {
 		t.Errorf("Invalid size. [%d != %d]\n", size, len(data2))
 		t.Fail()
 	}
