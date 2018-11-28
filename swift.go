@@ -120,7 +120,7 @@ func (s *Swift) Get(name string) (header *objects.GetHeader, err error) {
 	return objects.Get(client, s.config.Container, name, objects.GetOpts{}).Extract()
 }
 
-func (s *Swift) Download(name string) (content *UnbufferedReader, err error) {
+func (s *Swift) Download(name string) (content io.ReadCloser, err error) {
 	client, err := s.getObjectStorageClient()
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func (s *Swift) Download(name string) (content *UnbufferedReader, err error) {
 	if rs.Err != nil {
 		return nil, rs.Err
 	}
-	return &UnbufferedReader{R: rs.Body}, nil
+	return rs.Body, nil
 }
 
 func (s *Swift) Put(name string, content io.Reader) error {

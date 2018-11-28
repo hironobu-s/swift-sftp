@@ -29,7 +29,11 @@ func (fs *swiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	log.Debug("Calling Fileread() in swiftFS")
 
 	content, err := fs.swift.Download(fs.convertPathToObjectName(r.Filepath))
-	return content, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &UnbufferedReader{R: content}, err
 }
 
 func (fs *swiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
