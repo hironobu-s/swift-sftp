@@ -19,9 +19,6 @@ func StartSftpSession(swift *Swift, channel ssh.Channel) (err error) {
 	log.Debug("Initialized sftp server")
 
 	if err = server.Serve(); err == io.EOF {
-		// Need to sync before close sftp session
-		fs.SyncWaitingFiles()
-
 		log.Debug("End sftp session")
 
 		return server.Close()

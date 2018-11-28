@@ -34,9 +34,6 @@ func NewSwiftFS(s *Swift) *SwiftFS {
 		swift: s,
 	}
 
-	// To initialize waiting slices
-	fs.SyncWaitingFiles()
-
 	return fs
 }
 
@@ -45,10 +42,6 @@ func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
-
-	if err := fs.SyncWaitingFiles(); err != nil {
-		return nil, err
-	}
 
 	f, err := fs.lookup(r.Filepath)
 	if err != nil {
@@ -72,10 +65,6 @@ func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
-
-	if err := fs.SyncWaitingFiles(); err != nil {
-		return nil, err
-	}
 
 	f := &SwiftFile{
 		objectname: r.Filepath[1:], // strip slash
@@ -104,10 +93,6 @@ func (fs *SwiftFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	}
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
-
-	if err := fs.SyncWaitingFiles(); err != nil {
-		return nil, err
-	}
 
 	switch r.Method {
 	case "List":
