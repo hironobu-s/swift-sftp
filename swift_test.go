@@ -101,7 +101,7 @@ func TestPut(t *testing.T) {
 	}
 }
 func TestGet(t *testing.T) {
-	header, err := s.Get(testfile + "hosiejro")
+	header, err := s.Get(testfile)
 	if err != nil {
 		t.Errorf("%v\n", err)
 		t.Fail()
