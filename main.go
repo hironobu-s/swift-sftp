@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
+	"time"
+
+	"bytes"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -18,6 +20,10 @@ func main() {
 			ShortName: "s",
 			Usage:     "Start sftp server",
 			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "debug,d",
+					Usage: "Enable debug output",
+				},
 				cli.StringFlag{
 					Name:  "container,c",
 					Usage: "Specify container name",
@@ -53,54 +59,47 @@ func main() {
 	}
 }
 
+type OriginalFormatter struct {
+}
+
+func (f *OriginalFormatter) Format(e *log.Entry) ([]byte, error) {
+	t := time.Now()
+	data := bytes.NewBuffer(make([]byte, 0, 128))
+	for k, v := range e.Data {
+		data.WriteString(fmt.Sprintf("%s=%s", k, v))
+	}
+
+	var msg string
+	if data.Len() > 0 {
+		msg = fmt.Sprintf("[%s] %s (%s)\n", t.Format("2006-01-02 15:04:05"), e.Message, data)
+	} else {
+		msg = fmt.Sprintf("[%s] %s\n", t.Format("2006-01-02 15:04:05"), e.Message)
+	}
+	return []byte(msg), nil
+}
+
 func test(c *cli.Context) (err error) {
 	enableDebugTransport()
-	log.SetLevel(log.DebugLevel)
-
-	conf := Config{
-		BindAddress: "127.0.0.1:10022",
-		Container:   "test",
-	}
-	s := NewSwift(conf)
-	if err = s.Init(); err != nil {
-		return err
-	}
-
-	log.Debugf("Start downloading")
-	rs, size, err := s.Download("go1.10.2.linux-amd64.tar.gz")
-	log.Debugf("downloading...")
-	if err != nil {
-		return err
-	}
-
-	log.Debugf("create tmpfile...")
-	f, err := os.OpenFile("tmp.dat", os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	log.Debugf("copying...")
-	io.Copy(f, rs)
-
-	_ = rs
-	_ = size
-	log.Debugf("End downloading")
+	log.SetFormatter(&OriginalFormatter{})
 
 	return nil
 }
 
 func server(c *cli.Context) (err error) {
-	// enableDebugTransport()
-
-	// log.SetLevel(log.DebugLevel)
-	log.Printf("Starting SFTP server...")
+	if c.Bool("debug") {
+		enableDebugTransport()
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetFormatter(&OriginalFormatter{})
+	}
 
 	conf := Config{}
 	if err = conf.Init(c); err != nil {
 		return err
 	}
 	conf.Container = c.String("container")
+
+	log.Printf("Starting SFTP server...")
 
 	return StartServer(conf)
 }

@@ -104,6 +104,8 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 			symlink:    "",
 			isdir:      false,
 		}
+		log.Infof("Rename '%s' to '%s'", f.Name(), target.Name())
+
 		return fs.swift.Rename(f.Name(), target.Name())
 
 	case "Remove":
@@ -111,8 +113,7 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 		if err != nil {
 			return err
 		}
-		log.Debugf("Success to delete object. [name=%s]", f.Name())
-
+		log.Infof("Remove '%s'", f.Name())
 	}
 	return nil
 }

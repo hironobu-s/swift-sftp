@@ -22,8 +22,7 @@ type swiftReader struct {
 }
 
 func (r *swiftReader) download(tmpFileName string) (err error) {
-	log.Debugf("Download: create tmpfile. [%s]", tmpFileName)
-
+	log.Debugf("Create tmpfile. [%s]", tmpFileName)
 	fw, err := os.OpenFile(tmpFileName, os.O_WRONLY|os.O_TRUNC, 0000)
 	if err != nil {
 		log.Warnf("%v", err.Error())
@@ -31,26 +30,27 @@ func (r *swiftReader) download(tmpFileName string) (err error) {
 	}
 	defer fw.Close()
 
-	log.Debugf("Download: get '%s' from object storage.", r.sf.Name())
 	body, size, err := r.swift.Download(r.sf.Name())
 	if err != nil {
 		return err
 	}
 	defer body.Close()
 
-	log.Debugf("Download: start [size=%d]", size)
+	log.Debugf("Download object (name=%s, size=%d) from Swift", r.sf.Name(), size)
 	_, err = io.Copy(fw, body)
 	if err != nil {
-		log.Warnf("Download: error occured during copying [%v]", err.Error())
+		log.Warnf("Error occured during copying [%v]", err.Error())
 		return err
 	}
-	log.Debugf("Download: complete")
+	log.Debugf("Download completed")
 
 	return nil
 }
 
 func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 	if r.tmpfile == nil {
+		log.Infof("Send '%s' (size=%d) to the client", r.sf.Name(), r.sf.Size())
+
 		// Create tmpfile
 		fname, err := createTmpFile()
 		if err != nil {
@@ -91,7 +91,7 @@ func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 }
 
 func (r *swiftReader) Close() error {
-	log.Debugf("swiftReader closed")
+	log.Infof("'%s' was sent", r.sf.Name())
 	return nil
 }
 
@@ -120,6 +120,8 @@ func (w *swiftWriter) upload() (err error) {
 
 func (w *swiftWriter) WriteAt(p []byte, off int64) (n int, err error) {
 	if w.tmpfile == nil {
+		log.Infof("Upload '%s' (size=%d) to SFTP server", w.sf.Name(), w.sf.Size())
+
 		// Create tmpfile
 		fname, err := createTmpFile()
 		if err != nil {
@@ -144,22 +146,22 @@ func (w *swiftWriter) WriteAt(p []byte, off int64) (n int, err error) {
 func (w *swiftWriter) Close() error {
 	// start uploading
 	if w.tmpfile != nil {
+		log.Infof("Success to upload '%s' and thus upload it to Swift", w.sf.Name())
+
 		//go func() {
 		defer func() {
 			w.uploadComplete = true
 		}()
 
-		log.Debugf("Upload: start")
 		if err := w.upload(); err != nil {
 			w.uploadErr = err
 			log.Debugf("Upload: complete with error. [%v]", err)
-		} else {
-			log.Debugf("Upload: complete")
 		}
+
+		log.Infof("'%s' was uploaded", w.sf.Name())
+
 		//}()
 	}
-
-	log.Debugf("swiftWriter closed")
 	return nil
 }
 
