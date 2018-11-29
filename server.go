@@ -36,7 +36,7 @@ func StartServer(conf Config) error {
 			return err
 		}
 
-		log.Infof("Accept a client from %s", nConn.RemoteAddr())
+		log.Debugf("Accept a client from %s", nConn.RemoteAddr())
 		go func() {
 			err := handleClient(conf, sConf, swift, nConn)
 			if err != nil {
