@@ -34,7 +34,7 @@ func NewSwiftFS(s *Swift) *SwiftFS {
 }
 
 func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
-	log.Debugf("file read, method=%s filepath=%s", r.Method, r.Filepath)
+	log.Infof("%s %s", r.Method, r.Filepath)
 
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
@@ -54,7 +54,7 @@ func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 }
 
 func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
-	log.Debugf("file write, method=%s filepath=%s", r.Method, r.Filepath)
+	log.Infof("%s %s", r.Method, r.Filepath)
 
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
@@ -74,7 +74,6 @@ func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 }
 
 func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
-	log.Debugf("file cmd method=%s filepath=%s", r.Method, r.Filepath)
 
 	if fs.mockErr != nil {
 		return fs.mockErr
@@ -90,6 +89,7 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 	switch r.Method {
 	case "Setstat":
 	case "Rename":
+		log.Infof("%s %s to %s", r.Method, r.Filepath, r.Target)
 		target := &SwiftFile{
 			objectname: r.Target[1:], // strip slash
 			size:       0,
@@ -101,6 +101,7 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 
 	case "Rmdir":
 	case "Remove":
+		log.Infof("%s %s", r.Method, r.Filepath)
 		err = fs.swift.Delete(f.Name())
 		if err != nil {
 			return err
@@ -114,7 +115,7 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 }
 
 func (fs *SwiftFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
-	log.Debugf("file list method=%s filepath=%s", r.Method, r.Filepath)
+	log.Infof("%s %s", r.Method, r.Filepath)
 
 	if fs.mockErr != nil {
 		return nil, fs.mockErr
