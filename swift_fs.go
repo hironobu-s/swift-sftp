@@ -33,8 +33,16 @@ func NewSwiftFS(s *Swift) *SwiftFS {
 	return fs
 }
 
+func (fs *SwiftFS) debug(r *sftp.Request) {
+	if r.Target != "" {
+		log.Debugf("%s %s (target=%s)", r.Method, r.Filepath, r.Target)
+	} else {
+		log.Debugf("%s %s", r.Method, r.Filepath)
+	}
+}
+
 func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
-	log.Infof("%s %s", r.Method, r.Filepath)
+	fs.debug(r)
 
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
@@ -54,7 +62,7 @@ func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 }
 
 func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
-	log.Infof("%s %s", r.Method, r.Filepath)
+	fs.debug(r)
 
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
@@ -74,6 +82,7 @@ func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 }
 
 func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
+	fs.debug(r)
 
 	if fs.mockErr != nil {
 		return fs.mockErr
@@ -87,9 +96,7 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 	}
 
 	switch r.Method {
-	case "Setstat":
 	case "Rename":
-		log.Infof("%s %s to %s", r.Method, r.Filepath, r.Target)
 		target := &SwiftFile{
 			objectname: r.Target[1:], // strip slash
 			size:       0,
@@ -99,23 +106,19 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 		}
 		return fs.swift.Rename(f.Name(), target.Name())
 
-	case "Rmdir":
 	case "Remove":
-		log.Infof("%s %s", r.Method, r.Filepath)
 		err = fs.swift.Delete(f.Name())
 		if err != nil {
 			return err
 		}
 		log.Debugf("Success to delete object. [name=%s]", f.Name())
 
-	case "Mkdir":
-	case "Symlink":
 	}
 	return nil
 }
 
 func (fs *SwiftFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
-	log.Infof("%s %s", r.Method, r.Filepath)
+	fs.debug(r)
 
 	if fs.mockErr != nil {
 		return nil, fs.mockErr
@@ -146,9 +149,6 @@ func (fs *SwiftFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		} else {
 			return listerat([]os.FileInfo{}), nil
 		}
-
-	case "Readlink":
-		return nil, nil
 	}
 	return nil, nil
 }
