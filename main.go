@@ -1,8 +1,8 @@
 package main
 
 import (
+	"io"
 	"os"
-
 	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
@@ -19,6 +19,11 @@ func main() {
 			Usage:     "Start sftp server",
 			Action:    server,
 		},
+		cli.Command{
+			Name:   "test",
+			Usage:  "test run",
+			Action: test,
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -26,16 +31,55 @@ func main() {
 	}
 }
 
-func server(c *cli.Context) (err error) {
+func test(c *cli.Context) (err error) {
 	enableDebugTransport()
-
 	log.SetLevel(log.DebugLevel)
-	log.Info("Starting server...")
 
 	conf := Config{
 		ListenAddress: "127.0.0.1",
 		ListenPort:    10022,
 		Container:     "test",
+	}
+	s := NewSwift(conf)
+	if err = s.Init(); err != nil {
+		return err
+	}
+
+	log.Debugf("Start downloading")
+	rs, size, err := s.Download("go1.10.2.linux-amd64.tar.gz")
+	log.Debugf("downloading...")
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("create tmpfile...")
+	f, err := os.OpenFile("tmp.dat", os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	log.Debugf("copying...")
+	io.Copy(f, rs)
+
+	_ = rs
+	_ = size
+	log.Debugf("End downloading")
+
+	return nil
+}
+
+func server(c *cli.Context) (err error) {
+	enableDebugTransport()
+
+	log.SetLevel(log.DebugLevel)
+	log.Debugf("Starting server...")
+
+	conf := Config{
+		ListenAddress: "0.0.0.0",
+		//ListenAddress: "127.0.0.1",
+		ListenPort: 10022,
+		Container:  "test",
 	}
 
 	if conf.ServerPrivateKeyPath, err = filepath.Abs("./misc/server.key"); err != nil {
