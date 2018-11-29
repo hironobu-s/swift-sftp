@@ -83,11 +83,9 @@ func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 
 	} else if err == io.EOF {
 		// wait for downloading
-		log.Debugf("Wait for downloading, offset=%d len=%d read=%d", off, len(p), n)
 		return n, nil
 
 	} else {
-		// log.Debugf("ReadAt, offset=%d len=%d read=%d", off, len(p), n)
 		return n, err
 	}
 }
@@ -137,7 +135,6 @@ func (w *swiftWriter) WriteAt(p []byte, off int64) (n int, err error) {
 	}
 
 	n, err = w.tmpfile.WriteAt(p, off)
-	log.Debugf("WriteAt, offset=%d len=%d ", off, len(p))
 	if err != nil {
 		log.Debugf("%v", err)
 	}
