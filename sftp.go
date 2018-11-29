@@ -9,7 +9,7 @@ import (
 )
 
 func StartSftpSession(swift *Swift, channel ssh.Channel) (err error) {
-	log.Debug("Start sftp session")
+	log.Debug("Starting SFTP session.")
 
 	fs := NewSwiftFS(swift)
 	handler := sftp.Handlers{fs, fs, fs, fs}
