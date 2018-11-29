@@ -38,7 +38,7 @@ type swiftReader struct {
 }
 
 func (r *swiftReader) download(tmpFileName string) (err error) {
-	log.Debugf("Download: create tmpfile for downloading. [%s]", tmpFileName)
+	log.Debugf("Download: create tmpfile. [%s]", tmpFileName)
 
 	fw, err := os.OpenFile(tmpFileName, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
 	if err != nil {
