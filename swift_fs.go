@@ -90,6 +90,15 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 	switch r.Method {
 	case "Setstat":
 	case "Rename":
+		target := &SwiftFile{
+			objectname: r.Target[1:], // strip slash
+			size:       0,
+			modtime:    time.Now(),
+			symlink:    "",
+			isdir:      false,
+		}
+		return fs.swift.Rename(f.Name(), target.Name())
+
 	case "Rmdir":
 	case "Remove":
 		err = fs.swift.Delete(f.Name())

@@ -163,7 +163,7 @@ func (s *Swift) Put(name string, content io.Reader) error {
 		return rCreate.Err
 	}
 
-	dest := fmt.Sprintf("%s/%s", s.config.Container, name)
+	dest := fmt.Sprintf("%s%s%s", s.config.Container, Delimiter, name)
 	rCopy := objects.Copy(client, s.config.Container, tmpname, objects.CopyOpts{
 		Destination: dest,
 	})
@@ -181,6 +181,23 @@ func (s *Swift) Delete(name string) (err error) {
 	}
 
 	return objects.Delete(client, s.config.Container, name, objects.DeleteOpts{}).Err
+}
+
+func (s *Swift) Rename(oldName, newName string) (err error) {
+	client, err := s.getObjectStorageClient()
+	if err != nil {
+		return err
+	}
+
+	dest := fmt.Sprintf("%s%s%s", s.config.Container, Delimiter, newName)
+	rCopy := objects.Copy(client, s.config.Container, oldName, objects.CopyOpts{
+		Destination: dest,
+	})
+	if rCopy.Err != nil {
+		return rCopy.Err
+	}
+
+	return s.Delete(oldName)
 }
 
 func (s *Swift) getObjectStorageClient() (*gophercloud.ServiceClient, error) {
