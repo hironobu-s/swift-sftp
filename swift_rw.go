@@ -11,23 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func createTmpFile() (string, error) {
-	t := time.Now().Format(time.RFC3339Nano)
-	h := sha256.Sum256([]byte(t))
-	fname := filepath.Join(os.TempDir(), "ojs-"+hex.EncodeToString(h[:]))
-
-	f, err := os.OpenFile(fname, os.O_RDONLY|os.O_CREATE, 0600)
-	if err != nil {
-		return "", err
-	}
-	f.Close()
-
-	return fname, nil
-}
-
-type progressFunc func(tmpfile string) error
-
-// swiftReadWriter implements both interfaces, io.ReadAt and io.WriteAt.
+// swiftReader implements io.ReadAt interface
 type swiftReader struct {
 	swift *Swift
 	sf    *SwiftFile
@@ -40,7 +24,7 @@ type swiftReader struct {
 func (r *swiftReader) download(tmpFileName string) (err error) {
 	log.Debugf("Download: create tmpfile. [%s]", tmpFileName)
 
-	fw, err := os.OpenFile(tmpFileName, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
+	fw, err := os.OpenFile(tmpFileName, os.O_WRONLY|os.O_TRUNC, 0000)
 	if err != nil {
 		log.Warnf("%v", err.Error())
 		return err
@@ -99,7 +83,7 @@ func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 
 	} else if err == io.EOF {
 		// wait for downloading
-		//log.Debugf("Wait for downloading, offset=%d len=%d read=%d", off, len(p), n)
+		log.Debugf("Wait for downloading, offset=%d len=%d read=%d", off, len(p), n)
 		return n, nil
 
 	} else {
@@ -113,41 +97,85 @@ func (r *swiftReader) Close() error {
 	return nil
 }
 
+// swiftWriter implements io.WriteAt interface
 type swiftWriter struct {
 	swift *Swift
 	sf    *SwiftFile
 
-	tmpfile     *os.File
-	contentSize int64
+	tmpfile        *os.File
+	uploadComplete bool
+	uploadErr      error
+}
+
+func (w *swiftWriter) upload() (err error) {
+	fname := w.tmpfile.Name()
+	log.Debugf("Upload: create tmpfile. [%s]", fname)
+	fr, err := os.OpenFile(fname, os.O_RDONLY, 000)
+	if err != nil {
+		log.Warnf("%v", err.Error())
+		return err
+	}
+	defer fr.Close()
+
+	return w.swift.Put(w.sf.Name(), fr)
 }
 
 func (w *swiftWriter) WriteAt(p []byte, off int64) (n int, err error) {
-	// if rw.tmpfile == nil {
-	// 	fname := rw.sf.TempFileName()
-	// 	log.Debugf("Create tmpfile to write. [%s]", fname)
+	if w.tmpfile == nil {
+		// Create tmpfile
+		fname, err := createTmpFile()
+		if err != nil {
+			return -1, err
+		}
 
-	// 	// Do not need to call tmpfile.Close(). It'll be called in swiftReadWriter.Close()
-	// 	rw.tmpfile, err = os.OpenFile(fname, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
-	// 	if err != nil {
-	// 		log.Warnf("%v", err.Error())
-	// 		return 0, err
-	// 	}
-	// }
+		// Open tmpfile
+		w.tmpfile, err = os.OpenFile(fname, os.O_WRONLY, 0000)
+		if err != nil {
+			log.Warnf("Couldn't open tmpfile. [%v]", err.Error())
+			return -1, err
+		}
+	}
 
-	// log.Debugf("Write to tmpfile, offset=%d len=%d", off, len(p))
-
-	// // write buffer to the temporary file
-	// _, err = rw.tmpfile.WriteAt(p, off)
-	// if err != nil {
-	// 	log.Warnf("%v", err.Error())
-	// 	return 0, err
-	// }
-
-	// return len(p), nil
-	return 0, nil
+	n, err = w.tmpfile.WriteAt(p, off)
+	log.Debugf("WriteAt, offset=%d len=%d ", off, len(p))
+	if err != nil {
+		log.Debugf("%v", err)
+	}
+	return n, err
 }
 
 func (w *swiftWriter) Close() error {
+	// start uploading
+	if w.tmpfile != nil {
+		go func() {
+			defer func() {
+				w.uploadComplete = true
+			}()
+
+			log.Debugf("Upload: start")
+			if err := w.upload(); err != nil {
+				w.uploadErr = err
+				log.Debugf("Upload: complete with error. [%v]", err)
+			} else {
+				log.Debugf("Upload: complete")
+			}
+		}()
+	}
+
 	log.Debugf("swiftWriter closed")
 	return nil
+}
+
+func createTmpFile() (string, error) {
+	t := time.Now().Format(time.RFC3339Nano)
+	h := sha256.Sum256([]byte(t))
+	fname := filepath.Join(os.TempDir(), "ojs-"+hex.EncodeToString(h[:]))
+
+	f, err := os.OpenFile(fname, os.O_RDONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return "", err
+	}
+	f.Close()
+
+	return fname, nil
 }
