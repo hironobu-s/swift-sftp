@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -48,7 +48,8 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		panic(err)
+		fmt.Printf("Error: %s\n", err.Error())
+		os.Exit(1)
 	}
 }
 
@@ -57,9 +58,8 @@ func test(c *cli.Context) (err error) {
 	log.SetLevel(log.DebugLevel)
 
 	conf := Config{
-		ListenAddress: "127.0.0.1",
-		ListenPort:    10022,
-		Container:     "test",
+		BindAddress: "127.0.0.1:10022",
+		Container:   "test",
 	}
 	s := NewSwift(conf)
 	if err = s.Init(); err != nil {
@@ -91,53 +91,16 @@ func test(c *cli.Context) (err error) {
 }
 
 func server(c *cli.Context) (err error) {
-	enableDebugTransport()
+	// enableDebugTransport()
 
-	log.SetLevel(log.DebugLevel)
-	log.Debugf("Starting server...")
+	// log.SetLevel(log.DebugLevel)
+	log.Printf("Starting SFTP server...")
 
-	conf := Config{
-		ListenAddress: "0.0.0.0",
-		//ListenAddress: "127.0.0.1",
-		ListenPort: 10022,
-		Container:  "test",
-	}
-
-	if conf.ServerPrivateKeyPath, err = filepath.Abs("./misc/server.key"); err != nil {
+	conf := Config{}
+	if err = conf.Init(c); err != nil {
 		return err
 	}
-
-	if conf.AuthorizedKeysPath, err = filepath.Abs("./misc/authorized_keys"); err != nil {
-		return err
-	}
+	conf.Container = c.String("container")
 
 	return StartServer(conf)
-}
-
-type Config struct {
-	// generic options
-	CreateContainerIfNotExists bool
-
-	// network parameters
-	ListenAddress string
-	ListenPort    int
-
-	// ssh keys
-	ServerPrivateKeyPath string
-	AuthorizedKeysPath   string
-
-	// Required parameters for OpenStack
-	Container string
-	Region    string
-
-	// Optional parameters for OpenStack
-	// If those are not given, We use environment variables like OS_USERNAME to authenticate the client.
-	IdentityEndpoint string
-	UserID           string
-	Username         string
-	Password         string
-	DomainID         string
-	DomainName       string
-	TenantID         string
-	TenantName       string
 }
