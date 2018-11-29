@@ -3,9 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
-
-	"bytes"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -26,7 +23,7 @@ func main() {
 				},
 				cli.StringFlag{
 					Name:  "container,c",
-					Usage: "Specify container name",
+					Usage: "Container name",
 				},
 				cli.StringFlag{
 					Name:  "source-address,a",
@@ -41,7 +38,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "authorized-keys,k",
 					Usage: "File path of authorized_keys",
-					Value: "~/.ssh/authorized_keys2",
+					Value: "~/.ssh/authorized_keys",
 				},
 			},
 			Action: server,
@@ -58,26 +55,6 @@ func main() {
 		os.Exit(1)
 	}
 }
-
-type OriginalFormatter struct {
-}
-
-func (f *OriginalFormatter) Format(e *log.Entry) ([]byte, error) {
-	t := time.Now()
-	data := bytes.NewBuffer(make([]byte, 0, 128))
-	for k, v := range e.Data {
-		data.WriteString(fmt.Sprintf("%s=%s", k, v))
-	}
-
-	var msg string
-	if data.Len() > 0 {
-		msg = fmt.Sprintf("[%s] %s (%s)\n", t.Format("2006-01-02 15:04:05"), e.Message, data)
-	} else {
-		msg = fmt.Sprintf("[%s] %s\n", t.Format("2006-01-02 15:04:05"), e.Message)
-	}
-	return []byte(msg), nil
-}
-
 func test(c *cli.Context) (err error) {
 	enableDebugTransport()
 	log.SetFormatter(&OriginalFormatter{})
@@ -99,7 +76,7 @@ func server(c *cli.Context) (err error) {
 	}
 	conf.Container = c.String("container")
 
-	log.Printf("Starting SFTP server...")
+	log.Infof("Starting SFTP server...")
 
 	return StartServer(conf)
 }
