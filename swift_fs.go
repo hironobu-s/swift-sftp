@@ -47,7 +47,7 @@ func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		return nil, fmt.Errorf("File not found. [%s]", r.Filepath)
 	}
 
-	return &swiftReadWriter{
+	return &swiftReader{
 		swift: fs.swift,
 		sf:    f,
 	}, nil
@@ -67,7 +67,7 @@ func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		isdir:      false,
 	}
 
-	return &swiftReadWriter{
+	return &swiftWriter{
 		swift: fs.swift,
 		sf:    f,
 	}, nil

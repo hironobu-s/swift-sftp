@@ -1,10 +1,7 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -38,12 +35,6 @@ func (f *SwiftFile) Dir() string {
 		pos := strings.LastIndex(f.objectname, Delimiter)
 		return f.objectname[:pos+1]
 	}
-}
-
-func (f *SwiftFile) TempFileName() string {
-	t := time.Now().Format(time.RFC3339Nano)
-	h := sha256.Sum256([]byte(t))
-	return filepath.Join(os.TempDir(), "ojs-"+hex.EncodeToString(h[:]))
 }
 
 // io.Fileinfo interface
