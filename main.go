@@ -17,7 +17,28 @@ func main() {
 			Name:      "server",
 			ShortName: "s",
 			Usage:     "Start sftp server",
-			Action:    server,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "container,c",
+					Usage: "Specify container name",
+				},
+				cli.StringFlag{
+					Name:  "source-address,a",
+					Usage: "Source address of connection",
+					Value: "127.0.0.1",
+				},
+				cli.IntFlag{
+					Name:  "port,p",
+					Usage: "Port to listen",
+					Value: 10022,
+				},
+				cli.StringFlag{
+					Name:  "authorized-keys,k",
+					Usage: "File path of authorized_keys",
+					Value: "~/.ssh/authorized_keys2",
+				},
+			},
+			Action: server,
 		},
 		cli.Command{
 			Name:   "test",
