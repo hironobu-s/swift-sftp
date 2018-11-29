@@ -114,6 +114,9 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 			return err
 		}
 		log.Infof("Remove '%s'", f.Name())
+
+	default:
+		log.Debugf("Unsupported operation [method=%s, file=%s]", r.Method, r.Target)
 	}
 	return nil
 }
@@ -150,6 +153,9 @@ func (fs *SwiftFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		} else {
 			return listerat([]os.FileInfo{}), nil
 		}
+
+	default:
+		log.Debugf("Unsupported operation [method=%s, file=%s]", r.Method, r.Target)
 	}
 	return nil, nil
 }
