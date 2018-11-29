@@ -144,19 +144,19 @@ func (w *swiftWriter) WriteAt(p []byte, off int64) (n int, err error) {
 func (w *swiftWriter) Close() error {
 	// start uploading
 	if w.tmpfile != nil {
-		go func() {
-			defer func() {
-				w.uploadComplete = true
-			}()
-
-			log.Debugf("Upload: start")
-			if err := w.upload(); err != nil {
-				w.uploadErr = err
-				log.Debugf("Upload: complete with error. [%v]", err)
-			} else {
-				log.Debugf("Upload: complete")
-			}
+		//go func() {
+		defer func() {
+			w.uploadComplete = true
 		}()
+
+		log.Debugf("Upload: start")
+		if err := w.upload(); err != nil {
+			w.uploadErr = err
+			log.Debugf("Upload: complete with error. [%v]", err)
+		} else {
+			log.Debugf("Upload: complete")
+		}
+		//}()
 	}
 
 	log.Debugf("swiftWriter closed")
