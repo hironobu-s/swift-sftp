@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	"github.com/urfave/cli"
 )
@@ -56,7 +57,14 @@ func (c *Config) Init(ctx *cli.Context) (err error) {
 	// default values
 	c.BindAddress = fmt.Sprintf("%s:%d", ctx.String("source-address"), ctx.Int("port"))
 	c.HostPrivateKeyPath = filepath.Join(c.ConfigDir, "server.key")
-	c.AuthorizedKeysPath = ctx.String("authorized-keys")
+
+	// resolve the path including "~" manually
+	path := strings.Replace(ctx.String("authorized-keys"), "~", u.HomeDir, 1)
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	c.AuthorizedKeysPath = path
 
 	return nil
 }
