@@ -111,7 +111,7 @@ func genPassword(c *cli.Context) (err error) {
 	}
 	username := c.Args()[0]
 
-	fmt.Fprintf(os.Stdout, "Password: ")
+	fmt.Fprintf(os.Stderr, "Password: ")
 	password, err := terminal.ReadPassword(int(syscall.Stdin))
 	if err != nil {
 		return err
