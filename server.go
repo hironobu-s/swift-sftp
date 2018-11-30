@@ -1,19 +1,28 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
 
-	"crypto/x509"
-
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
+)
+
+const (
+	PasswordSalt = "swift-sftp"
 )
 
 func StartServer(conf Config) error {
@@ -86,7 +95,33 @@ func initServer(conf Config) (sConf *ssh.ServerConfig, err error) {
 		}
 	}
 
-	authPkey := func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Permissions, error) {
+	sConf = &ssh.ServerConfig{
+		PublicKeyCallback: authPkey(conf),
+	}
+
+	// Add password authentication method if password file exists
+	s, err := os.Stat(conf.PasswordFilePath)
+	if !s.IsDir() && err == nil {
+		sConf.PasswordCallback = authPassword(conf)
+	}
+
+	// host private key
+	pkeyBytes, err := ioutil.ReadFile(conf.HostPrivateKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	pkey, err := ssh.ParsePrivateKey(pkeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	sConf.AddHostKey(pkey)
+
+	return sConf, nil
+}
+
+func authPkey(conf Config) func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Permissions, error) {
+	return func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Permissions, error) {
 		authorizedKeysBytes, err := ioutil.ReadFile(conf.AuthorizedKeysPath)
 		if err != nil {
 			return nil, err
@@ -113,32 +148,58 @@ func initServer(conf Config) (sConf *ssh.ServerConfig, err error) {
 		}
 		return nil, fmt.Errorf("unknown public key for %q", c.User())
 	}
+}
 
-	authPassword := func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
-		if c.User() == "hiro" && string(password) == "test123" {
-			return nil, nil
+func GenerateHashedPassword(username string, plainPassword []byte) (hashed []byte) {
+	buf := bytes.NewBuffer(make([]byte, len(username)+len(plainPassword)+len(PasswordSalt)))
+	buf.WriteString(username)
+	buf.Write(plainPassword)
+	buf.WriteString(PasswordSalt)
+
+	b := sha256.Sum256(buf.Bytes())
+	hashed = make([]byte, 64)
+	hex.Encode(hashed, b[:])
+	return hashed
+}
+
+func authPassword(conf Config) func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+	return func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+		f, err := os.Open(conf.PasswordFilePath)
+		if err != nil {
+			return nil, err
 		}
+		defer f.Close()
+
+		r := bufio.NewReader(f)
+
+		for {
+			line, _, err := r.ReadLine()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				return nil, err
+			}
+
+			var listUser []byte
+			var listPass []byte
+			for i := 0; i < len(line); i++ {
+				if line[i] == ':' {
+					listUser = line[:i]
+					listPass = line[i+1:]
+					break
+				}
+			}
+
+			hashed := GenerateHashedPassword(c.User(), password)
+			if subtle.ConstantTimeCompare(listUser, []byte(c.User())) == 1 &&
+				subtle.ConstantTimeCompare(listPass, hashed) == 1 {
+				// authorized
+				return nil, nil
+			}
+		}
+
 		return nil, fmt.Errorf("password rejected for %q", c.User())
 	}
-
-	sConf = &ssh.ServerConfig{
-		PasswordCallback:  authPassword,
-		PublicKeyCallback: authPkey,
-	}
-
-	// host private key
-	pkeyBytes, err := ioutil.ReadFile(conf.HostPrivateKeyPath)
-	if err != nil {
-		return nil, err
-	}
-
-	pkey, err := ssh.ParsePrivateKey(pkeyBytes)
-	if err != nil {
-		return nil, err
-	}
-	sConf.AddHostKey(pkey)
-
-	return sConf, nil
 }
 
 func handleClient(conf Config, sConf *ssh.ServerConfig, swift *Swift, nConn net.Conn) error {

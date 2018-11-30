@@ -11,8 +11,14 @@ import (
 )
 
 type Config struct {
-	ConfigDir                  string
+	// It's ~/.swift-sftp
+	ConfigDir string
+
+	// container creation
 	CreateContainerIfNotExists bool
+
+	// password file for password authentication
+	PasswordFilePath string
 
 	// network parameters
 	BindAddress string
@@ -59,7 +65,15 @@ func (c *Config) Init(ctx *cli.Context) (err error) {
 	c.HostPrivateKeyPath = filepath.Join(c.ConfigDir, "server.key")
 
 	// resolve the path including "~" manually
-	path := strings.Replace(ctx.String("authorized-keys"), "~", u.HomeDir, 1)
+	var path string
+	path = strings.Replace(ctx.String("userlist"), "~", u.HomeDir, 1)
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	c.PasswordFilePath = path
+
+	path = strings.Replace(ctx.String("authorized-keys"), "~", u.HomeDir, 1)
 	path, err = filepath.Abs(path)
 	if err != nil {
 		return err
