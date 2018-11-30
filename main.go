@@ -8,10 +8,12 @@ import (
 	"os"
 	"syscall"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
 )
+
+var log *logrus.Entry
 
 func main() {
 	app := cli.NewApp()
@@ -82,12 +84,15 @@ func main() {
 }
 
 func server(c *cli.Context) (err error) {
+	// log
+	l := logrus.New()
 	if c.Bool("debug") {
 		enableDebugTransport()
-		log.SetLevel(log.DebugLevel)
+		l.SetLevel(logrus.DebugLevel)
 	} else {
-		log.SetFormatter(&OriginalFormatter{})
+		l.SetFormatter(&SftpLogFormatter{})
 	}
+	log = logrus.NewEntry(l)
 
 	conf := Config{}
 	if err = conf.Init(c); err != nil {
@@ -95,7 +100,7 @@ func server(c *cli.Context) (err error) {
 	}
 	conf.Container = c.String("container")
 
-	log.Infof("Starting SFTP server...")
+	log.Infof("Starting SFTP server")
 
 	return StartServer(conf)
 }
@@ -129,6 +134,6 @@ func test(c *cli.Context) (err error) {
 	b := sha256.Sum256([]byte("hiro123"))
 	hashed := make([]byte, len(b)*2)
 	n := hex.Encode(hashed, b[:])
-
+	_ = n
 	return nil
 }

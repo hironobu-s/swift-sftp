@@ -4,7 +4,6 @@ import (
 	"io"
 
 	"github.com/pkg/sftp"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 

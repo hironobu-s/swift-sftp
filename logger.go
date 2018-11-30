@@ -1,28 +1,41 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
-type OriginalFormatter struct {
+type SftpLogFormatter struct {
 }
 
-func (f *OriginalFormatter) Format(e *log.Entry) ([]byte, error) {
+func (f *SftpLogFormatter) Format(e *logrus.Entry) ([]byte, error) {
 	t := time.Now()
-	data := bytes.NewBuffer(make([]byte, 0, 128))
-	for k, v := range e.Data {
-		data.WriteString(fmt.Sprintf("%s=%s", k, v))
+
+	// client
+	var client *Client
+	data, ok := e.Data["client"]
+	if ok {
+		tmp, ok := data.(*Client)
+		if ok {
+			client = tmp
+		}
 	}
 
 	var msg string
-	if data.Len() > 0 {
-		msg = fmt.Sprintf("[%s] %s (%s)\n", t.Format("2006-01-02 15:04:05"), e.Message, data)
+	if client != nil {
+		// we need to shorten session id because it's too long to display
+		msg = fmt.Sprintf("%s [%s]  %s\n",
+			t.Format("2006-01-02 15:04:05"),
+			client.SessionID[:16],
+			e.Message)
+
 	} else {
-		msg = fmt.Sprintf("[%s] %s\n", t.Format("2006-01-02 15:04:05"), e.Message)
+		msg = fmt.Sprintf("%s [%s]  %s\n",
+			t.Format("2006-01-02 15:04:05"),
+			"-",
+			e.Message)
 	}
 	return []byte(msg), nil
 }

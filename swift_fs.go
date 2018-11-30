@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
-	log "github.com/sirupsen/logrus"
 )
 
 const (

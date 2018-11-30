@@ -17,7 +17,7 @@ import (
 	"net"
 	"os"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -26,8 +26,8 @@ const (
 )
 
 func StartServer(conf Config) error {
-	// Prepare server config
-	sConf, err := initServer(conf)
+	// Prepare server config and client
+	sConf, client, err := initServer(conf)
 	if err != nil {
 		return err
 	}
@@ -37,6 +37,7 @@ func StartServer(conf Config) error {
 	if err = swift.Init(); err != nil {
 		return err
 	}
+	log.Infof("Use container '%s'", conf.Container)
 
 	// Start server
 	listener, err := net.Listen("tcp", conf.BindAddress)
@@ -51,9 +52,9 @@ func StartServer(conf Config) error {
 			return err
 		}
 
-		log.Printf("Accepted client from %s", nConn.RemoteAddr())
+		log.Printf("Connect from %s", nConn.RemoteAddr())
 		go func() {
-			err := handleClient(conf, sConf, swift, nConn)
+			err := handleClient(conf, sConf, swift, nConn, client)
 			if err == nil {
 				return
 			}
@@ -87,40 +88,42 @@ func generatePrivateKey(path string) error {
 	return ioutil.WriteFile(path, data, 0600)
 }
 
-func initServer(conf Config) (sConf *ssh.ServerConfig, err error) {
+func initServer(conf Config) (sConf *ssh.ServerConfig, client *Client, err error) {
+	client = &Client{}
+
 	// generate host key if it not exists.
 	if _, err = os.Stat(conf.HostPrivateKeyPath); err != nil {
 		if err = generatePrivateKey(conf.HostPrivateKeyPath); err != nil {
-			return nil, err
+			return nil, client, err
 		}
 	}
 
 	sConf = &ssh.ServerConfig{
-		PublicKeyCallback: authPkey(conf),
+		PublicKeyCallback: authPkey(conf, client),
 	}
 
 	// Add password authentication method if password file exists
 	s, err := os.Stat(conf.PasswordFilePath)
 	if !s.IsDir() && err == nil {
-		sConf.PasswordCallback = authPassword(conf)
+		sConf.PasswordCallback = authPassword(conf, client)
 	}
 
 	// host private key
 	pkeyBytes, err := ioutil.ReadFile(conf.HostPrivateKeyPath)
 	if err != nil {
-		return nil, err
+		return nil, client, err
 	}
 
 	pkey, err := ssh.ParsePrivateKey(pkeyBytes)
 	if err != nil {
-		return nil, err
+		return nil, client, err
 	}
 	sConf.AddHostKey(pkey)
 
-	return sConf, nil
+	return sConf, client, nil
 }
 
-func authPkey(conf Config) func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Permissions, error) {
+func authPkey(conf Config, client *Client) func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Permissions, error) {
 	return func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Permissions, error) {
 		authorizedKeysBytes, err := ioutil.ReadFile(conf.AuthorizedKeysPath)
 		if err != nil {
@@ -139,6 +142,10 @@ func authPkey(conf Config) func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Pe
 		}
 
 		if authorizedKeysMap[string(pkey.Marshal())] {
+			client.SessionID = fmt.Sprintf("%x", c.SessionID())
+			client.Username = c.User()
+			client.RemoteAddr = c.RemoteAddr().String()
+
 			return &ssh.Permissions{
 				// Record the public key used for authentication.
 				Extensions: map[string]string{
@@ -162,7 +169,8 @@ func GenerateHashedPassword(username string, plainPassword []byte) (hashed []byt
 	return hashed
 }
 
-func authPassword(conf Config) func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+func authPassword(conf Config, client *Client) func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+
 	return func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 		f, err := os.Open(conf.PasswordFilePath)
 		if err != nil {
@@ -194,6 +202,9 @@ func authPassword(conf Config) func(c ssh.ConnMetadata, password []byte) (*ssh.P
 			if subtle.ConstantTimeCompare(listUser, []byte(c.User())) == 1 &&
 				subtle.ConstantTimeCompare(listPass, hashed) == 1 {
 				// authorized
+				client.SessionID = fmt.Sprintf("%x", c.SessionID())
+				client.Username = c.User()
+				client.RemoteAddr = c.RemoteAddr().String()
 				return nil, nil
 			}
 		}
@@ -202,11 +213,17 @@ func authPassword(conf Config) func(c ssh.ConnMetadata, password []byte) (*ssh.P
 	}
 }
 
-func handleClient(conf Config, sConf *ssh.ServerConfig, swift *Swift, nConn net.Conn) error {
+func handleClient(conf Config, sConf *ssh.ServerConfig, swift *Swift, nConn net.Conn, client *Client) error {
 	_, chans, reqs, err := ssh.NewServerConn(nConn, sConf)
 	if err != nil {
 		return err
 	}
+
+	// add some fields based on the client to logger
+	log = log.WithFields(logrus.Fields{
+		"client": client,
+	})
+	log.Infof("Session opened for %s@%s", client.Username, client.RemoteAddr)
 
 	go ssh.DiscardRequests(reqs)
 
@@ -242,5 +259,8 @@ func handleClient(conf Config, sConf *ssh.ServerConfig, swift *Swift, nConn net.
 			return err
 		}
 	}
+
+	log.Infof("Session closed for %s@%s", client.Username, client.RemoteAddr)
+
 	return nil
 }

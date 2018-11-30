@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // swiftReader implements io.ReadAt interface
