@@ -37,7 +37,7 @@ func StartServer(conf Config) error {
 	if err = swift.Init(); err != nil {
 		return err
 	}
-	log.Infof("Use container '%s'", conf.Container)
+	log.Infof("Use container '%s%s'", swift.SwiftClient.Endpoint, conf.Container)
 
 	// Start server
 	listener, err := net.Listen("tcp", conf.BindAddress)
