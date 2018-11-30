@@ -206,9 +206,12 @@ func (s *Swift) getObjectStorageClient() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewObjectStorageV1(auth, gophercloud.EndpointOpts{
-		Region: s.config.Region,
-	})
+	opts := gophercloud.EndpointOpts{}
+	if s.config.OsRegion != "" {
+		opts.Region = s.config.OsRegion
+	}
+
+	return openstack.NewObjectStorageV1(auth, opts)
 }
 
 func (s *Swift) getAuthClient() (*gophercloud.ProviderClient, error) {
@@ -217,16 +220,16 @@ func (s *Swift) getAuthClient() (*gophercloud.ProviderClient, error) {
 		opts gophercloud.AuthOptions
 	)
 
-	if (s.config.UserID != "" || s.config.Username != "") && s.config.Password != "" {
+	if (s.config.OsUserID != "" || s.config.OsUsername != "") && s.config.OsPassword != "" {
 		opts = gophercloud.AuthOptions{
-			IdentityEndpoint: s.config.IdentityEndpoint,
-			UserID:           s.config.UserID,
-			Username:         s.config.Username,
-			Password:         s.config.Password,
-			DomainID:         s.config.DomainID,
-			DomainName:       s.config.DomainName,
-			TenantID:         s.config.TenantID,
-			TenantName:       s.config.TenantName,
+			IdentityEndpoint: s.config.OsIdentityEndpoint,
+			UserID:           s.config.OsUserID,
+			Username:         s.config.OsUsername,
+			Password:         s.config.OsPassword,
+			DomainID:         s.config.OsDomainID,
+			DomainName:       s.config.OsDomainName,
+			TenantID:         s.config.OsTenantID,
+			TenantName:       s.config.OsTenantName,
 		}
 
 	} else if opts, err = openstack.AuthOptionsFromEnv(); err != nil {

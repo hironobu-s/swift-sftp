@@ -27,20 +27,20 @@ type Config struct {
 	HostPrivateKeyPath string
 	AuthorizedKeysPath string
 
-	// Required parameters for OpenStack
+	// Container name
 	Container string
-	Region    string
 
 	// Optional parameters for OpenStack
 	// If those are not given, We use environment variables like OS_USERNAME to authenticate the client.
-	IdentityEndpoint string
-	UserID           string
-	Username         string
-	Password         string
-	DomainID         string
-	DomainName       string
-	TenantID         string
-	TenantName       string
+	OsIdentityEndpoint string
+	OsUserID           string
+	OsUsername         string
+	OsPassword         string
+	OsDomainID         string
+	OsDomainName       string
+	OsTenantID         string
+	OsTenantName       string
+	OsRegion           string
 }
 
 func (c *Config) Init(ctx *cli.Context) (err error) {
