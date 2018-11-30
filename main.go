@@ -94,8 +94,11 @@ func server(c *cli.Context) (err error) {
 	}
 	log = logrus.NewEntry(l)
 
+	opts := ConfigInitOpts{}
+	opts.FromContext(c)
+
 	conf := Config{}
-	if err = conf.Init(c); err != nil {
+	if err = conf.Init(opts); err != nil {
 		return err
 	}
 	conf.Container = c.String("container")

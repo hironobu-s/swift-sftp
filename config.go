@@ -43,7 +43,23 @@ type Config struct {
 	OsRegion           string
 }
 
-func (c *Config) Init(ctx *cli.Context) (err error) {
+type ConfigInitOpts struct {
+	Container          string
+	SourceAddress      string
+	Port               int
+	PasswordFilePath   string
+	AuthorizedKeysPath string
+}
+
+func (c *ConfigInitOpts) FromContext(ctx *cli.Context) {
+	c.Container = ctx.String("container")
+	c.SourceAddress = ctx.String("source-address")
+	c.Port = ctx.Int("port")
+	c.PasswordFilePath = ctx.String("password-file")
+	c.AuthorizedKeysPath = ctx.String("authorized-keys")
+}
+
+func (c *Config) Init(opts ConfigInitOpts) (err error) {
 	// temporary directory
 	u, err := user.Current()
 	if err != nil {
@@ -58,35 +74,35 @@ func (c *Config) Init(ctx *cli.Context) (err error) {
 	c.ConfigDir = dir
 
 	// container
-	c.Container = ctx.String("container")
+	c.Container = opts.Container
 
 	// default values
-	c.BindAddress = fmt.Sprintf("%s:%d", ctx.String("source-address"), ctx.Int("port"))
+	c.BindAddress = fmt.Sprintf("%s:%d", opts.SourceAddress, opts.Port)
 	c.HostPrivateKeyPath = filepath.Join(c.ConfigDir, "server.key")
 
 	// resolve the path including "~" manually
 	var path string
 
-	if ctx.String("password-file") != "" {
-		path = strings.Replace(ctx.String("password-file"), "~", u.HomeDir, 1)
+	if opts.PasswordFilePath != "" {
+		path = strings.Replace(opts.PasswordFilePath, "~", u.HomeDir, 1)
 		path, err = filepath.Abs(path)
 		if err != nil {
 			return err
 		}
 		if _, err = os.Stat(path); err != nil {
-			return fmt.Errorf("Password file '%s' is not found", ctx.String("password-file"))
+			return fmt.Errorf("Password file '%s' is not found", opts.PasswordFilePath)
 		}
 		c.PasswordFilePath = path
 	}
 
-	if ctx.String("authorized-keys") != "" {
-		path = strings.Replace(ctx.String("authorized-keys"), "~", u.HomeDir, 1)
+	if opts.AuthorizedKeysPath != "" {
+		path = strings.Replace(opts.AuthorizedKeysPath, "~", u.HomeDir, 1)
 		path, err = filepath.Abs(path)
 		if err != nil {
 			return err
 		}
 		if _, err = os.Stat(path); err != nil {
-			return fmt.Errorf("Authorized keys file '%s' is not found", ctx.String("authorized-keys"))
+			return fmt.Errorf("Authorized keys file '%s' is not found", opts.AuthorizedKeysPath)
 		}
 		c.AuthorizedKeysPath = path
 
