@@ -104,7 +104,7 @@ func initServer(conf Config) (sConf *ssh.ServerConfig, client *Client, err error
 
 	// Add password authentication method if password file exists
 	s, err := os.Stat(conf.PasswordFilePath)
-	if !s.IsDir() && err == nil {
+	if err == nil && !s.IsDir() {
 		sConf.PasswordCallback = authPassword(conf, client)
 	}
 

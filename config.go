@@ -66,19 +66,33 @@ func (c *Config) Init(ctx *cli.Context) (err error) {
 
 	// resolve the path including "~" manually
 	var path string
-	path = strings.Replace(ctx.String("userlist"), "~", u.HomeDir, 1)
-	path, err = filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-	c.PasswordFilePath = path
 
-	path = strings.Replace(ctx.String("authorized-keys"), "~", u.HomeDir, 1)
-	path, err = filepath.Abs(path)
-	if err != nil {
-		return err
+	if ctx.String("password-file") != "" {
+		path = strings.Replace(ctx.String("password-file"), "~", u.HomeDir, 1)
+		path, err = filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+		if _, err = os.Stat(path); err != nil {
+			return fmt.Errorf("Password file '%s' is not found", ctx.String("password-file"))
+		}
+		c.PasswordFilePath = path
 	}
-	c.AuthorizedKeysPath = path
+
+	if ctx.String("authorized-keys") != "" {
+		path = strings.Replace(ctx.String("authorized-keys"), "~", u.HomeDir, 1)
+		path, err = filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+		if _, err = os.Stat(path); err != nil {
+			return fmt.Errorf("Authorized keys file '%s' is not found'%s'", ctx.String("authorized-keys"))
+		}
+		c.AuthorizedKeysPath = path
+
+	} else {
+		return fmt.Errorf("Authorized keys file is required")
+	}
 
 	return nil
 }
