@@ -86,7 +86,7 @@ func (c *Config) Init(ctx *cli.Context) (err error) {
 			return err
 		}
 		if _, err = os.Stat(path); err != nil {
-			return fmt.Errorf("Authorized keys file '%s' is not found'%s'", ctx.String("authorized-keys"))
+			return fmt.Errorf("Authorized keys file '%s' is not found", ctx.String("authorized-keys"))
 		}
 		c.AuthorizedKeysPath = path
 
