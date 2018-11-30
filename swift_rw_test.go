@@ -2,32 +2,48 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
+	"io"
 	"io/ioutil"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 )
 
-func prepareTestObject() (tmpfile string, data []byte, err error) {
-	tmpfile = "download-test.obj"
+func generateTestFile(filename string, size int64) (data []byte, err error) {
+	data = make([]byte, size)
+	w := bytes.NewBuffer(data)
+	_, err = io.CopyN(w, rand.Reader, size)
 
-	data = []byte(strings.Repeat("data", 1000))
-	if err = ioutil.WriteFile(tmpfile, data, 0600); err != nil {
-		return "", nil, err
+	if err != nil {
+		return nil, err
 	}
 
-	if err = tSwift.Put(tmpfile, bytes.NewBuffer(data)); err != nil {
-		return "", nil, err
+	if err = ioutil.WriteFile(filename, data, 0600); err != nil {
+		return nil, err
 	}
 
-	return tmpfile, data, nil
+	return data, nil
+}
+
+func generateTestObject(filename string, size int64) (data []byte, err error) {
+	data, err = generateTestFile(filename, size)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tSwift.Put(filename, bytes.NewBuffer(data)); err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 func TestReaderDownload(t *testing.T) {
-	filename, data, err := prepareTestObject()
+	filename := "reader-test.dat"
+	data, err := generateTestObject(filename, 1024*1024)
 	defer func() {
 		os.Remove(filename)
 	}()
