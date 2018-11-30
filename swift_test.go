@@ -7,100 +7,87 @@ import (
 	"os"
 	"testing"
 
-	"github.com/k0kubun/pp"
+	"github.com/sirupsen/logrus"
 )
 
 var (
-	testfile = "testfile.txt"
-	tmpfile  = "tmp_testfile.txt"
-	s        *Swift
-	fs       *SwiftFS
+	// testfile = "testfile.txt"
+	// tmpfile  = "tmp_testfile.txt"
+	tConfig Config
+	tSwift  *Swift
 )
 
 func TestMain(m *testing.M) {
-	c := Config{
+	l := logrus.New()
+	l.SetLevel(logrus.DebugLevel)
+	log = logrus.NewEntry(l)
+	//enableDebugTransport()
+
+	tConfig = Config{
 		Container:                  "ojs-test-container",
 		CreateContainerIfNotExists: true,
 	}
 
-	// First, delete the container
-	s = NewSwift(c)
-	s.Init()
-	s.DeleteContainer()
-
-	// Recreate swift for testing
-	s = NewSwift(c)
-
-	// fs
-	fs = NewSwiftFS(s)
+	// First, delete the container for testing
+	tSwift = NewSwift(tConfig)
+	tSwift.Init()
+	tSwift.DeleteContainer()
+	tSwift.CreateContainer()
 
 	// run
 	code := m.Run()
 
 	// after testing
-	s.DeleteContainer()
-	os.Remove(testfile)
+	tSwift.DeleteContainer()
 
 	os.Exit(code)
 }
 
 func TestAuthFromEnv(t *testing.T) {
+	s := NewSwift(tConfig)
 	if err := s.Init(); err != nil {
 		fmt.Printf("%v", err)
 		t.Fail()
 	}
 }
 
-func TestList(t *testing.T) {
-	ls, err := s.List()
-	if err != nil {
-		fmt.Printf("%v", err)
-		t.Fail()
-	}
-
-	if len(ls) > 0 {
-		pp.Printf("%v\n", ls)
-		t.Errorf("%d objects exists on the object storage and then the test result might be incorrect.", len(ls))
-	}
-}
-
 func TestPut(t *testing.T) {
+	filename := "testdata.obj"
 
 	data := []byte("This is test data.")
-	err := ioutil.WriteFile("testfile.txt", data, 0600)
+	err := ioutil.WriteFile(filename, data, 0600)
 	if err != nil {
 		t.Errorf("%v", err)
-		t.Fail()
 	}
 
-	err = s.Put(testfile, bytes.NewReader(data))
+	err = tSwift.Put(filename, bytes.NewReader(data))
 	if err != nil {
 		t.Errorf("%v", err)
-		t.Fail()
 	}
 
-	ls, err := s.List()
+	ls, err := tSwift.List()
 	if err != nil {
 		t.Errorf("%v", err)
-		t.Fail()
 	}
 
+	tmpfilename := "tmp-" + filename
 	existTestfile := false
 	for _, obj := range ls {
-		if obj.Name == testfile {
+		if obj.Name == filename {
 			existTestfile = true
-		} else if obj.Name == tmpfile {
-			t.Errorf("Temporary file '%s' exists", tmpfile)
-			t.Fail()
+		} else if obj.Name == tmpfilename {
+			t.Errorf("Temporary file '%s' exists", tmpfilename)
 		}
 	}
 
 	if !existTestfile {
-		t.Errorf("Does not exist testfile. '%s'", testfile)
+		t.Errorf("Does not exist testfile. '%s'", filename)
 	}
 }
 func TestGet(t *testing.T) {
-	header, err := s.Get(testfile)
+	filename := "testdata.obj"
+
+	header, err := tSwift.Get(filename)
 	if err != nil {
 		t.Errorf("%v\n", err)
 		t.Fail()
@@ -111,13 +98,19 @@ func TestGet(t *testing.T) {
 }
 
 func TestDownload(t *testing.T) {
-	obj, size, err := s.Download(testfile)
+	filename := "testdata.obj"
+	// remove test file
+	defer func() {
+		os.Remove(filename)
+	}()
+
+	obj, size, err := tSwift.Download(filename)
 	if err != nil {
 		t.Errorf("%v\n", err)
 		t.Fail()
 	}
 
-	data1, _ := ioutil.ReadFile(testfile)
+	data1, _ := ioutil.ReadFile(filename)
 	data2, _ := ioutil.ReadAll(obj)
 
 	if len(data1) != len(data2) {
