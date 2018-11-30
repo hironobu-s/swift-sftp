@@ -29,12 +29,14 @@ func generateTestFile(filename string, size int64) (data []byte, err error) {
 }
 
 func generateTestObject(filename string, size int64) (data []byte, err error) {
+	s := swiftForTesting()
+
 	data, err = generateTestFile(filename, size)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = tSwift.Put(filename, bytes.NewBuffer(data)); err != nil {
+	if err = s.Put(filename, bytes.NewBuffer(data)); err != nil {
 		return nil, err
 	}
 
@@ -42,6 +44,8 @@ func generateTestObject(filename string, size int64) (data []byte, err error) {
 }
 
 func TestReaderDownload(t *testing.T) {
+	s := swiftForTesting()
+
 	filename := "reader-test.dat"
 	data, err := generateTestObject(filename, 1024*1024)
 	defer func() {
@@ -58,7 +62,7 @@ func TestReaderDownload(t *testing.T) {
 		size:       0,
 		modtime:    time.Now(),
 	}
-	r := swiftReader{swift: tSwift, sf: f}
+	r := swiftReader{swift: s, sf: f}
 
 	err = r.download(f.Name())
 	if err != nil {

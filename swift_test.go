@@ -6,45 +6,10 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/sirupsen/logrus"
 )
-
-var (
-	// testfile = "testfile.txt"
-	// tmpfile  = "tmp_testfile.txt"
-	tConfig Config
-	tSwift  *Swift
-)
-
-func TestMain(m *testing.M) {
-	l := logrus.New()
-	l.SetLevel(logrus.DebugLevel)
-	log = logrus.NewEntry(l)
-	//enableDebugTransport()
-
-	tConfig = Config{
-		Container:                  "ojs-test-container",
-		CreateContainerIfNotExists: true,
-	}
-
-	// First, delete the container for testing
-	tSwift = NewSwift(tConfig)
-	tSwift.Init()
-	tSwift.DeleteContainer()
-	tSwift.CreateContainer()
-
-	// run
-	code := m.Run()
-
-	// after testing
-	tSwift.DeleteContainer()
-
-	os.Exit(code)
-}
 
 func TestAuthFromEnv(t *testing.T) {
-	s := NewSwift(tConfig)
+	s := swiftForTesting()
 	if err := s.Init(); err != nil {
 		fmt.Printf("%v", err)
 		t.Fail()
@@ -52,6 +17,8 @@ func TestAuthFromEnv(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
+	s := swiftForTesting()
+
 	filename := "testdata.obj"
 
 	data := []byte("This is test data.")
@@ -60,12 +27,12 @@ func TestPut(t *testing.T) {
 		t.Errorf("%v", err)
 	}
 
-	err = tSwift.Put(filename, bytes.NewReader(data))
+	err = s.Put(filename, bytes.NewReader(data))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
-	ls, err := tSwift.List()
+	ls, err := s.List()
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -84,10 +51,13 @@ func TestPut(t *testing.T) {
 		t.Errorf("Does not exist testfile. '%s'", filename)
 	}
 }
+
 func TestGet(t *testing.T) {
+	s := swiftForTesting()
+
 	filename := "testdata.obj"
 
-	header, err := tSwift.Get(filename)
+	header, err := s.Get(filename)
 	if err != nil {
 		t.Errorf("%v\n", err)
 		t.Fail()
@@ -98,13 +68,15 @@ func TestGet(t *testing.T) {
 }
 
 func TestDownload(t *testing.T) {
+	s := swiftForTesting()
+
 	filename := "testdata.obj"
 	// remove test file
 	defer func() {
 		os.Remove(filename)
 	}()
 
-	obj, size, err := tSwift.Download(filename)
+	obj, size, err := s.Download(filename)
 	if err != nil {
 		t.Errorf("%v\n", err)
 		t.Fail()
