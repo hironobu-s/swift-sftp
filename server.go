@@ -55,7 +55,7 @@ func StartServer(conf Config) error {
 		log.Printf("Connect from %s", nConn.RemoteAddr())
 		go func() {
 			err := handleClient(conf, sConf, swift, nConn, client)
-			if err == nil {
+			if err == nil || err == io.EOF {
 				return
 			}
 
