@@ -96,8 +96,12 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 
 	switch r.Method {
 	case "Rename":
+
+		tf := SwiftFile{
+			objectname: r.Target,
+		}
 		target := &SwiftFile{
-			objectname: r.Target[1:], // strip slash
+			objectname: tf.Name(),
 			size:       0,
 			modtime:    time.Now(),
 			symlink:    "",
