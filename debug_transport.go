@@ -2,8 +2,6 @@ package main
 
 import (
 	"net/http"
-
-	"github.com/sirupsen/logrus"
 )
 
 var __default_transport http.RoundTripper
@@ -25,15 +23,15 @@ type DebugTransport struct {
 }
 
 func (t *DebugTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	logrus.Debugf("Send    ==>: %s %s", req.Method, req.URL)
-	logrus.Debugf("%v", req.Header)
+	log.Debugf("Send    ==>: %s %s", req.Method, req.URL)
+	log.Debugf("%v", req.Header)
 
 	resp, err = t.Transport.RoundTrip(req)
 	if err != nil {
 		return resp, err
 	}
 
-	logrus.Debugf("Receive <==: %d %s (size=%d)", resp.StatusCode, resp.Request.URL, resp.ContentLength)
+	log.Debugf("Receive <==: %d %s (size=%d)", resp.StatusCode, resp.Request.URL, resp.ContentLength)
 
 	return resp, err
 }
