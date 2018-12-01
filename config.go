@@ -45,7 +45,7 @@ type Config struct {
 
 type ConfigInitOpts struct {
 	Container          string
-	SourceAddress      string
+	Address            string
 	Port               int
 	PasswordFilePath   string
 	AuthorizedKeysPath string
@@ -53,8 +53,7 @@ type ConfigInitOpts struct {
 
 func (c *ConfigInitOpts) FromContext(ctx *cli.Context) {
 	c.Container = ctx.String("container")
-	c.SourceAddress = ctx.String("source-address")
-	c.Port = ctx.Int("port")
+	c.Address = ctx.String("address")
 	c.PasswordFilePath = ctx.String("password-file")
 	c.AuthorizedKeysPath = ctx.String("authorized-keys")
 }
@@ -77,7 +76,7 @@ func (c *Config) Init(opts ConfigInitOpts) (err error) {
 	c.Container = opts.Container
 
 	// default values
-	c.BindAddress = fmt.Sprintf("%s:%d", opts.SourceAddress, opts.Port)
+	c.BindAddress = opts.Address
 	c.HostPrivateKeyPath = filepath.Join(c.ConfigDir, "server.key")
 
 	// resolve the path including "~" manually

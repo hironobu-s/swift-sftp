@@ -38,8 +38,7 @@ func defaultConfigForTesting() Config {
 	// default value
 	opts := ConfigInitOpts{
 		Container:          "ojs-test-container",
-		SourceAddress:      "127.0.0.1",
-		Port:               10022,
+		Address:            "127.0.0.1:10022",
 		PasswordFilePath:   "",
 		AuthorizedKeysPath: "~/.ssh/authorized_keys",
 	}

@@ -17,12 +17,12 @@ var log *logrus.Entry
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "conoha transfer for SFTP"
+	app.Name = "swift-sftp"
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name:      "server",
 			ShortName: "s",
-			Usage:     "Start sftp server",
+			Usage:     "Start SFTP server",
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "debug,d",
@@ -33,14 +33,9 @@ func main() {
 					Usage: "Container name",
 				},
 				cli.StringFlag{
-					Name:  "source-address,a",
+					Name:  "address,a",
 					Usage: "Source address of connection",
-					Value: "127.0.0.1",
-				},
-				cli.IntFlag{
-					Name:  "port,p",
-					Usage: "Port to listen",
-					Value: 10022,
+					Value: "127.0.0.1:10022",
 				},
 				cli.StringFlag{
 					Name:  "password-file",
