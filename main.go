@@ -47,9 +47,9 @@ func main() {
 		},
 
 		cli.Command{
-			Name:      "gen-password",
+			Name:      "gen-password-hash",
 			ShortName: "p",
-			Usage:     "Generate password",
+			Usage:     "Generate password hash",
 			Action:    genPassword,
 			ArgsUsage: "[username]",
 			Flags: []cli.Flag{
