@@ -31,7 +31,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "address,a",
 					Usage: "Source address of connection",
-					Value: "127.0.0.1:10022",
+					Value: "localhost:10022",
 				},
 				cli.StringFlag{
 					Name:  "password-file",
