@@ -29,10 +29,6 @@ func main() {
 					Usage: "Enable debug output",
 				},
 				cli.StringFlag{
-					Name:  "container,c",
-					Usage: "Container name",
-				},
-				cli.StringFlag{
 					Name:  "address,a",
 					Usage: "Source address of connection",
 					Value: "127.0.0.1:10022",
@@ -48,7 +44,8 @@ func main() {
 					Value: "~/.ssh/authorized_keys",
 				},
 			},
-			Action: server,
+			ArgsUsage: "<container>",
+			Action:    server,
 		},
 
 		cli.Command{
@@ -96,7 +93,6 @@ func server(c *cli.Context) (err error) {
 	if err = conf.Init(opts); err != nil {
 		return err
 	}
-	conf.Container = c.String("container")
 
 	log.Infof("Starting SFTP server")
 

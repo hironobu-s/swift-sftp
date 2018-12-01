@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/user"
@@ -52,7 +53,9 @@ type ConfigInitOpts struct {
 }
 
 func (c *ConfigInitOpts) FromContext(ctx *cli.Context) {
-	c.Container = ctx.String("container")
+	if len(ctx.Args()) > 0 {
+		c.Container = ctx.Args()[0]
+	}
 	c.Address = ctx.String("address")
 	c.PasswordFilePath = ctx.String("password-file")
 	c.AuthorizedKeysPath = ctx.String("authorized-keys")
@@ -74,6 +77,9 @@ func (c *Config) Init(opts ConfigInitOpts) (err error) {
 
 	// container
 	c.Container = opts.Container
+	if c.Container == "" {
+		return errors.New("Parameter 'container' required")
+	}
 
 	// default values
 	c.BindAddress = opts.Address
