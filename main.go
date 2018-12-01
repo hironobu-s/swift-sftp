@@ -16,6 +16,9 @@ var log *logrus.Entry
 func main() {
 	app := cli.NewApp()
 	app.Name = "swift-sftp"
+	app.Author = "Hironobu Saito"
+	app.Usage = "SFTP server for OpenStack Swift"
+
 	app.Version = "1.0"
 	app.Commands = []cli.Command{
 		cli.Command{
