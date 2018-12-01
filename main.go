@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -61,12 +59,6 @@ func main() {
 				},
 			},
 		},
-
-		cli.Command{
-			Name:   "test",
-			Usage:  "test run",
-			Action: test,
-		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -121,13 +113,5 @@ func genPassword(c *cli.Context) (err error) {
 		fmt.Fprintf(os.Stdout, "%s", hashed)
 	}
 	fmt.Println()
-	return nil
-}
-
-func test(c *cli.Context) (err error) {
-	b := sha256.Sum256([]byte("hiro123"))
-	hashed := make([]byte, len(b)*2)
-	n := hex.Encode(hashed, b[:])
-	_ = n
 	return nil
 }
