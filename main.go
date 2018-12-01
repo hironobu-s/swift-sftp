@@ -49,7 +49,7 @@ func main() {
 
 		cli.Command{
 			Name:      "gen-password-hash",
-			ShortName: "p",
+			ShortName: "g",
 			Usage:     "Generate password hash",
 			Action:    genPassword,
 			ArgsUsage: "[username]",
