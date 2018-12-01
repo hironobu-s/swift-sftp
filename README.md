@@ -24,18 +24,18 @@ GitHub Releaseのページから実行ファイルをダウンロードしてく
 **Mac OSX**
 
 ```shell
-curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/current/swift-sftp.amd64.gz | zcat > swift-sftp && chmod +x ./swift-sftp
+curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp-osx.amd64.gz | zcat > swift-sftp && chmod +x ./swift-sftp
 ```
 
 **Linux(amd64)**
 
 ```shell
-curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/current/swift-sftp-linux.amd64.gz | zcat > swift-sftp && chmod +x ./swift-sftp
+curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp-linux.amd64.gz | zcat > swift-sftp && chmod +x ./swift-sftp
 ```
 
 **Windows(amd64)**
 
-[ZIP file](https://github.com/hironobu-s/swift-sftp/releases/download/current/swift-sftp.amd64.zip)
+[ZIP file](https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp.amd64.zip)
 
 
 ## 使い方
