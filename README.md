@@ -110,4 +110,6 @@ sftp>
 
 ## ライセンス
 
-MIT
+Copyright (c) 2018 Hironobu Saito
+
+[Released under the MIT license](https://opensource.org/licenses/mit-license.php)
