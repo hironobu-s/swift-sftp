@@ -9,10 +9,10 @@
 ## Features
 
 * swift-sftp deals with a single container on Object Storage.
-* You can upload and download the object through the SFTP client
-* sftp-sftp not only supports both public key authentication as the default but also supports password authentication.
+* You can upload and download the object through SFTP client
+* swift-sftp supports not only public key authentication as the default but also password authentication.
 
-There are some rescrictions by the difference of protocols between HTTPS and SFTP.
+Followings are some rescrictions by the gaps of the protocols between HTTPS and SFTP.
 
 * Doesn't support `chmod` command
 * Doesn't support any operations for directories
