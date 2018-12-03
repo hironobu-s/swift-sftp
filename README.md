@@ -41,7 +41,7 @@ curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift
 
 ## How to set up the server
 
-## OpenStack configurations
+### OpenStack configurations
 
 'sftp-sftp` must have the environment variables for OpenStack authentication to access to the container.
 
@@ -55,7 +55,7 @@ export OS_AUTH_URL=[URL of Identity Endpoint]
 export OS_REGION_NAME=[Region name]
 ```
 
-## User authentication of swift-sftp
+### Authentication methods
 
 `swift-sftp` uses `($HOME)/.ssh/authorized_keys` file for Public Key authentication at default. All users in the list will be permitted to connect to the SFTP server.
 
