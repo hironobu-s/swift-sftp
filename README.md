@@ -1,25 +1,27 @@
 
 # swift-sftp
 
-`swift-sftp`は[OpenStack Swift オブジェクトストレージ](https://docs.openstack.org/swift/latest/)(以下Swift)をバックエンドに利用するSFTPサーバーです。一般的なSFTPクライアント(WinSCPやFilezillaなど)を用いて、Swiftを操作できるようになります。
+`swift-sftp` is an SFTP server that uses [OpenStack Swift Object Storage](https://docs.openstack.org/swift/latest/) as a filesystem. 
 
-> 現在、swift-sftpは[ConoHaオブジェクトストレージ](https://www.conoha.jp/objectstorage/)で使うことを想定して開発されています。
+> swift-sftp is supposed to be used for [ConoHa Object Storage](https://www.conoha.jp/en/features/)
 
-## 機能
 
-* 一つのswift-sftpでSwift上の一コンテナを扱います
-* オブジェクトのアップロード、ダウンロードをSFTPクライアントを通じて行えます
-* SFTPサーバーは公開鍵認証とパスワード認証をサポートしています
+## Features
 
-また、オブジェクトストレージ(HTTPS)とSFTPのプロトコルの違いにより以下の制約事項があります。
+* swift-sftp deals with a single container on Object Storage.
+* You can upload and download the object through the SFTP client
+* sftp-sftp not only supports both public key authentication as the default but also supports password authentication.
 
-* パーミッションの変更(chmod)はできません
-* ディレクトリはサポートしていません
-* SFTPクライアントからアップロードしたオブジェクトは、一度swift-sftpが動いているサーバーにアップロードされ、その後Swiftにアップロードされます。そのためアップロードには通常の2倍の時間が必要になります。
+There are some rescrictions by the difference of protocols between HTTPS and SFTP.
 
-## インストール
+* Doesn't support `chmod` command
+* Doesn't support any operations for directories
+* It takes twice times more time than uploading the object to Object Storage directly
 
-GitHub Releaseのページから実行ファイルをダウンロードしてください。
+
+## Install
+
+Download the executable file on GitHub release page.
 
 **Mac OSX**
 
@@ -37,32 +39,29 @@ curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift
 
 [ZIP file](https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp.amd64.zip)
 
+## How to set up the server
 
-## 使い方
+## OpenStack configurations
 
-### OpenStack認証
+'sftp-sftp` must have the environment variables for OpenStack authentication to access to the container.
 
-まずOpenStackの認証情報を設定します。これらの認証情報はswift-sftpがSwiftへアクセスするために使われます。認証情報は環境変数で渡す必要があります。
-
-参考: [OpenStack Docs: Authentication](https://docs.openstack.org/python-openstackclient/pike/cli/authentication.html)
+See: [OpenStack Docs: Authentication](https://docs.openstack.org/python-openstackclient/pike/cli/authentication.html)
 
 ```bash
-export OS_USERNAME=[APIユーザ名]
-export OS_PASSWORD=[APIパスワード]
-export OS_TENANT_NAME=[テナント名]
-export OS_AUTH_URL=[Identity EndpointのURL]
-export OS_REGION_NAME=[リージョン]
+export OS_USERNAME=[Username]
+export OS_PASSWORD=[Password]
+export OS_TENANT_NAME=[Tenant name]
+export OS_AUTH_URL=[URL of Identity Endpoint]
+export OS_REGION_NAME=[Region name]
 ```
 
-### swift-sftpの認証
+## User authentication of swift-sftp
 
-次にswift-sftpのSFTPサーバーにアクセス可能なクライアントを設定します。
+`swift-sftp` uses `($HOME)/.ssh/authorized_keys` file for Public Key authentication at default. All users in the list will be permitted to connect to the SFTP server.
 
-デフォルトで`($HOME)/.ssh/authorized_keys`ファイルが読み込まれるので、ここに記述されているユーザーは公開鍵認証でアクセスできます。ファイル名は`-k`オプションで変更することもできます。
+You may also use Password authentication method with `--password-file` option. A password file has two fields separated by colon, username and hash value.
 
-パスワード認証をする場合は、`--password-file`オプションでパスワードファイルを指定してください(デフォルトでは無効です)。パスワードファイルはユーザー名とハッシュを`:`で区切ったファイルです。ハッシュ値の生成は`gen-password-hash`サブコマンドを利用すると便利です。
-
-ハッシュ値生成とパスワードファイルの作成(ユーザー名:hironobu の場合)
+To create your password file with `gen-password-hash` sub-command:
 
 ```bash
 $ swift-sftp gen-password-hash -f hironobu > passwd
@@ -71,9 +70,9 @@ $ cat passwd
 hironobu:971ec9d21d32fe4f5fb440dc90b522aa804c663aec68c908cbea5fc790f7f15d
 ```
 
-### SFTPサーバーの起動
+### Starting SFTP server
 
-swift-sftpコマンドの引数にコンテナ名を渡して実行するとSFTPサーバーが起動します。
+Providing your container name, and run SFTP server
 
 ```shell
 $ swift-sftp server [container-name]
@@ -82,13 +81,13 @@ $ swift-sftp server [container-name]
 2018-01-01 00:00:00 [-]  Listen: localhost:10022
 ```
 
-`server` は `s` に省略できます。
+Also use the short name ``s`` instead of ``server``
 
 ```shell
 $ swift-sftp s [container-name]
 ```
 
-外部からの接続を受け付けるには`-a`オプションを使います。
+You might want to connect the server from the public network. The server will listen to the specific network address with ``-a``option.
 
 ```shell
 $ swift-sftp s -a 0.0.0.0:10022 [container-name]
@@ -97,8 +96,7 @@ $ swift-sftp s -a 0.0.0.0:10022 [container-name]
 2018-01-01 00:00:00 [-]  Listen: 0.0.0.0:10022
 ```
 
-
-サーバーが起動したら、SFTPクライアントから接続します。
+Once the server started, You can connect it through the SFTP client.
 
 ```shell
 $ sftp -P 10022 -i [private_key_file] hironobu@localhost
@@ -106,7 +104,7 @@ Connected to localhost.
 sftp>
 ```
 
-## ライセンス
+## License
 
 Copyright (c) 2018 Hironobu Saito
 
