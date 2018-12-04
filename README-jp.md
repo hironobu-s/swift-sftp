@@ -37,6 +37,16 @@ curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift
 
 [swift-sftp.exe](https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp.exe)
 
+**ビルド手順**
+
+```shell```
+cd $GOPATH
+go get github.com/hironobu-s/swift-sftp
+cd $GOPATH/src/github.com/hironobu-s/swift-sftp
+make setup
+make
+```
+
 ## 使い方
 
 ### OpenStack認証
