@@ -41,7 +41,7 @@ curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift
 
 **Build manually**
 
-```shell```
+```shell
 cd $GOPATH
 go get github.com/hironobu-s/swift-sftp
 cd $GOPATH/src/github.com/hironobu-s/swift-sftp
