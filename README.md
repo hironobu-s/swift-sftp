@@ -39,6 +39,16 @@ curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift
 
 [swift-sftp.exe](https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp.exe)
 
+**Build manually**
+
+```shell```
+cd $GOPATH
+go get github.com/hironobu-s/swift-sftp
+cd $GOPATH/src/github.com/hironobu-s/swift-sftp
+make setup
+make
+```
+
 ## How to set up the server
 
 ### OpenStack configurations
