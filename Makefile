@@ -4,6 +4,10 @@ GOARCH=amd64
 
 all: clean windows darwin linux
 
+setup:
+	go get -u github.com/golang/dep/cmd/dep
+	dep ensure
+
 windows:
 	GOOS=$@ GOARCH=$(GOARCH) CGO_ENABLED=0 go build $(GOFLAGS) -o $(BINDIR)/$@/$(NAME).exe
 	cd bin/$@; zip $(NAME).$(GOARCH).zip $(NAME).exe
