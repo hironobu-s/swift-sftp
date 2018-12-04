@@ -34,7 +34,7 @@ func (r *swiftReader) download(tmpFileName string) (err error) {
 	}
 	defer body.Close()
 
-	log.Debugf("Download object (name=%s, size=%d) from Swift", r.sf.Name(), size)
+	log.Debugf("Start downloading '%s' (size=%d) from Object Storage", r.sf.Name(), size)
 	_, err = io.Copy(fw, body)
 	if err != nil {
 		log.Warnf("Error occured during copying [%v]", err.Error())
@@ -47,7 +47,7 @@ func (r *swiftReader) download(tmpFileName string) (err error) {
 
 func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 	if r.tmpfile == nil {
-		log.Infof("Send '%s' (size=%d) to the client", r.sf.Name(), r.sf.Size())
+		log.Infof("Start sending '%s' (size=%d) to client", r.sf.Name(), r.sf.Size())
 
 		// Create tmpfile
 		fname, err := createTmpFile()
@@ -76,7 +76,7 @@ func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 
 	n, err = r.tmpfile.ReadAt(p, off)
 	if r.downloadComplete && err == io.EOF {
-		log.Debugf("Sent EOF to the client. [%s]", r.sf.Name())
+		log.Debugf("Send EOF to client. [%s]", r.sf.Name())
 		return n, io.EOF
 
 	} else if err == io.EOF {
@@ -89,7 +89,7 @@ func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 }
 
 func (r *swiftReader) Close() error {
-	log.Infof("'%s' was sent", r.sf.Name())
+	log.Infof("'%s' was sent successfully", r.sf.Name())
 	return nil
 }
 
@@ -118,7 +118,7 @@ func (w *swiftWriter) upload() (err error) {
 
 func (w *swiftWriter) WriteAt(p []byte, off int64) (n int, err error) {
 	if w.tmpfile == nil {
-		log.Infof("Upload '%s' (size=%d) to SFTP server", w.sf.Name(), w.sf.Size())
+		log.Infof("Start receiving '%s' from client", w.sf.Name())
 
 		// Create tmpfile
 		fname, err := createTmpFile()
@@ -144,7 +144,12 @@ func (w *swiftWriter) WriteAt(p []byte, off int64) (n int, err error) {
 func (w *swiftWriter) Close() error {
 	// start uploading
 	if w.tmpfile != nil {
-		log.Infof("Upload '%s' to Swift", w.sf.Name())
+		s, err := w.tmpfile.Stat()
+		if err != nil {
+			return err
+		}
+
+		log.Infof("Start uploading '%s' (size=%d) to Object Storage", w.sf.Name(), s.Size())
 
 		//go func() {
 		defer func() {
