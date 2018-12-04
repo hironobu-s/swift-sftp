@@ -35,8 +35,7 @@ curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift
 
 **Windows(amd64)**
 
-[ZIP file](https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp.amd64.zip)
-
+[swift-sftp.exe](https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp.exe)
 
 ## 使い方
 
