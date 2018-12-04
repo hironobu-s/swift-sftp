@@ -24,5 +24,4 @@ clean:
 	rm -rf $(BINDIR)
 
 test:
-	go test -v *.go
-	go test -v command/*.go
+	env ENV=test go test -cover -race -v
