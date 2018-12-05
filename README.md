@@ -49,7 +49,7 @@ make setup
 make
 ```
 
-## How to set up the server
+## How to set up a server
 
 ### OpenStack configurations
 
