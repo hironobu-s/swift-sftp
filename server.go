@@ -56,12 +56,12 @@ func StartServer(conf Config) error {
 
 			serr, ok := err.(*ssh.ServerAuthError)
 			if !ok {
-				log.Warnf("Client error: %v", err)
+				log.Warnf("%s", err)
 				return
 			}
 
 			for _, err = range serr.Errors {
-				log.Warnf("Client Error: %v", err)
+				log.Warnf("%s", err)
 			}
 		}()
 	}
