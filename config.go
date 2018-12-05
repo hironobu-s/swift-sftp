@@ -11,6 +11,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"os/user"
 
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli"
@@ -74,7 +77,12 @@ func (c *Config) Init() (err error) {
 
 	// All paths in a configuration must be absolute path.
 	if c.ServerKeyPath != "" {
-		path, err := filepath.Abs(c.ServerKeyPath)
+		path := c.ServerKeyPath
+		if u, err := user.Current(); err == nil {
+			path = strings.Replace(path, "~", u.HomeDir, 1)
+		}
+
+		path, err := filepath.Abs(path)
 		if err != nil {
 			return err
 		}
@@ -93,7 +101,12 @@ func (c *Config) Init() (err error) {
 	}
 
 	if c.PasswordFilePath != "" {
-		path, err := filepath.Abs(c.PasswordFilePath)
+		path := c.PasswordFilePath
+		if u, err := user.Current(); err == nil {
+			path = strings.Replace(path, "~", u.HomeDir, 1)
+		}
+
+		path, err = filepath.Abs(path)
 		if err != nil {
 			return err
 		}
@@ -104,7 +117,12 @@ func (c *Config) Init() (err error) {
 	}
 
 	if c.AuthorizedKeysPath != "" {
-		path, err := filepath.Abs(c.AuthorizedKeysPath)
+		path := c.AuthorizedKeysPath
+		if u, err := user.Current(); err == nil {
+			path = strings.Replace(path, "~", u.HomeDir, 1)
+		}
+
+		path, err := filepath.Abs(path)
 		if err != nil {
 			return err
 		}
