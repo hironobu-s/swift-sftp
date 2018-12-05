@@ -35,16 +35,9 @@ func TestMain(m *testing.M) {
 }
 
 func defaultConfigForTesting() Config {
-	// default value
-	opts := ConfigInitOpts{
-		Container:          "ojs-test-container",
-		Address:            "127.0.0.1:10022",
-		PasswordFilePath:   "",
-		AuthorizedKeysPath: "~/.ssh/authorized_keys",
-	}
-
 	c := Config{}
-	if err := c.Init(opts); err != nil {
+	c.LoadFromFile("./misc/testing/test.toml")
+	if err := c.Init(); err != nil {
 		panic(err)
 	}
 	c.CreateContainerIfNotExists = true
@@ -66,7 +59,7 @@ func swiftForTesting() *Swift {
 
 // -----------------------------------------------------
 
-func TestInitServerHostkey(t *testing.T) {
+func TestInitServerServer(t *testing.T) {
 	c := defaultConfigForTesting()
 	sConf, _, err := initServer(c)
 	if err != nil {
@@ -76,7 +69,7 @@ func TestInitServerHostkey(t *testing.T) {
 	_ = sConf
 
 	// make sure that server private key was generated
-	data, err := ioutil.ReadFile(c.HostPrivateKeyPath)
+	data, err := ioutil.ReadFile(c.ServerKeyPath)
 	if err != nil {
 		t.Error("Server private keyfile was not generated")
 		return

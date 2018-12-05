@@ -3,14 +3,9 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
-	"crypto/x509"
 	"encoding/hex"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -72,31 +67,8 @@ func StartServer(conf Config) error {
 	}
 }
 
-// Generate ECDSA private key
-func generatePrivateKey(path string) error {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return err
-	}
-	encoded, err := x509.MarshalECPrivateKey(key)
-	if err != nil {
-		return err
-	}
-
-	data := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: encoded})
-
-	return ioutil.WriteFile(path, data, 0600)
-}
-
 func initServer(conf Config) (sConf *ssh.ServerConfig, client *Client, err error) {
 	client = &Client{}
-
-	// generate host key if it not exists.
-	if _, err = os.Stat(conf.HostPrivateKeyPath); err != nil {
-		if err = generatePrivateKey(conf.HostPrivateKeyPath); err != nil {
-			return nil, client, err
-		}
-	}
 
 	sConf = &ssh.ServerConfig{
 		PublicKeyCallback: authPkey(conf, client),
@@ -109,7 +81,7 @@ func initServer(conf Config) (sConf *ssh.ServerConfig, client *Client, err error
 	}
 
 	// host private key
-	pkeyBytes, err := ioutil.ReadFile(conf.HostPrivateKeyPath)
+	pkeyBytes, err := ioutil.ReadFile(conf.ServerKeyPath)
 	if err != nil {
 		return nil, client, err
 	}

@@ -1,113 +1,127 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli"
 )
 
 type Config struct {
-	// It's ~/.swift-sftp
-	ConfigDir string
-
 	// container creation
-	CreateContainerIfNotExists bool
+	CreateContainerIfNotExists bool `toml:"create_container"`
 
 	// password file for password authentication
-	PasswordFilePath string
+	PasswordFilePath string `toml:"password_file"`
 
 	// network parameters
-	BindAddress string
+	BindAddress string `toml:"bind_address"`
 
 	// ssh keys
-	HostPrivateKeyPath string
-	AuthorizedKeysPath string
+	ServerKeyPath      string `toml:"server_key"`
+	AuthorizedKeysPath string `toml:"authorized_keys"`
 
 	// Container name
-	Container string
+	Container string `toml:"container"`
 
 	// Optional parameters for OpenStack
 	// If those are not given, We use environment variables like OS_USERNAME to authenticate the client.
-	OsIdentityEndpoint string
-	OsUserID           string
-	OsUsername         string
-	OsPassword         string
-	OsDomainID         string
-	OsDomainName       string
-	OsTenantID         string
-	OsTenantName       string
-	OsRegion           string
+	OsIdentityEndpoint string `toml:"os_identity_endpoint"`
+	OsUserID           string `toml:"os_user_id"`
+	OsUsername         string `toml:"os_username"`
+	OsPassword         string `toml:"os_password"`
+	OsDomainID         string `toml:"os_domain_id"`
+	OsDomainName       string `toml:"os_domain_name"`
+	OsTenantID         string `toml:"os_tenant_id"`
+	OsTenantName       string `toml:"os_tenant_name"`
+	OsRegion           string `toml:"os_region"`
 }
 
-type ConfigInitOpts struct {
-	Container          string
-	Address            string
-	Port               int
-	PasswordFilePath   string
-	AuthorizedKeysPath string
-}
-
-func (c *ConfigInitOpts) FromContext(ctx *cli.Context) {
-	if len(ctx.Args()) > 0 {
-		c.Container = ctx.Args()[0]
-	}
-	c.Address = ctx.String("address")
+func (c *Config) LoadFromContext(ctx *cli.Context) error {
+	c.BindAddress = ctx.String("address")
+	c.Container = ctx.String("container")
 	c.PasswordFilePath = ctx.String("password-file")
+	c.ServerKeyPath = ctx.String("server-key")
 	c.AuthorizedKeysPath = ctx.String("authorized-keys")
+	c.CreateContainerIfNotExists = ctx.Bool("create-container")
+
+	return nil
 }
 
-func (c *Config) Init(opts ConfigInitOpts) (err error) {
+func (c *Config) LoadFromFile(filename string) error {
+	if _, err := os.Stat(filename); err != nil {
+		return fmt.Errorf("Config file '%s' is not found", filename)
+	}
+
+	_, err := toml.DecodeFile(filename, &c)
+	return err
+}
+
+func (c *Config) Init() (err error) {
 	// temporary directory
 	u, err := user.Current()
 	if err != nil {
 		return err
 	}
-	dir := filepath.Join(u.HomeDir, ".swift-sftp")
-	if _, err = os.Stat(dir); err != nil {
-		if err = os.Mkdir(dir, 0700); err != nil {
-			return err
-		}
-	}
-	c.ConfigDir = dir
 
 	// container
-	c.Container = opts.Container
 	if c.Container == "" {
 		return errors.New("Parameter 'container' required")
 	}
 
-	// default values
-	c.BindAddress = opts.Address
-	c.HostPrivateKeyPath = filepath.Join(c.ConfigDir, "server.key")
+	// All paths in a configuration must be absolute path.
+	if c.ServerKeyPath != "" {
+		// resolve the path including "~" manually
+		path := strings.Replace(c.ServerKeyPath, "~", u.HomeDir, 1)
+		path, err = filepath.Abs(path)
+		if err != nil {
+			return err
+		}
 
-	// resolve the path including "~" manually
-	var path string
+		// generate host key if not exists.
+		if _, err = os.Stat(path); err != nil {
+			log.Infof("Create new host key '%s'", path)
+			if err = c.generatePrivateKey(path); err != nil {
+				return err
+			}
+		}
+		c.ServerKeyPath = path
 
-	if opts.PasswordFilePath != "" {
-		path = strings.Replace(opts.PasswordFilePath, "~", u.HomeDir, 1)
+	} else {
+		return fmt.Errorf("Server key file is required")
+	}
+
+	if c.PasswordFilePath != "" {
+		path := strings.Replace(c.PasswordFilePath, "~", u.HomeDir, 1)
 		path, err = filepath.Abs(path)
 		if err != nil {
 			return err
 		}
 		if _, err = os.Stat(path); err != nil {
-			return fmt.Errorf("Password file '%s' is not found", opts.PasswordFilePath)
+			return fmt.Errorf("Password file '%s' is not found", c.PasswordFilePath)
 		}
 		c.PasswordFilePath = path
 	}
 
-	if opts.AuthorizedKeysPath != "" {
-		path = strings.Replace(opts.AuthorizedKeysPath, "~", u.HomeDir, 1)
+	if c.AuthorizedKeysPath != "" {
+		path := strings.Replace(c.AuthorizedKeysPath, "~", u.HomeDir, 1)
 		path, err = filepath.Abs(path)
 		if err != nil {
 			return err
 		}
 		if _, err = os.Stat(path); err != nil {
-			return fmt.Errorf("Authorized keys file '%s' is not found", opts.AuthorizedKeysPath)
+			return fmt.Errorf("Authorized keys file '%s' is not found", c.AuthorizedKeysPath)
 		}
 		c.AuthorizedKeysPath = path
 
@@ -116,4 +130,20 @@ func (c *Config) Init(opts ConfigInitOpts) (err error) {
 	}
 
 	return nil
+}
+
+// Generate ECDSA private key
+func (c *Config) generatePrivateKey(path string) error {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return err
+	}
+	encoded, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return err
+	}
+
+	data := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: encoded})
+
+	return ioutil.WriteFile(path, data, 0600)
 }

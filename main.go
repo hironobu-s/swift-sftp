@@ -31,23 +31,43 @@ func main() {
 					Usage: "Enable debug output",
 				},
 				cli.StringFlag{
-					Name:  "address,a",
-					Usage: "Source address of connection",
-					Value: "localhost:10022",
+					Name:  "container,c",
+					Usage: "Set container name",
+					Value: "",
+				},
+				cli.BoolFlag{
+					Name:  "create-container",
+					Usage: "Create container if not exist",
 				},
 				cli.StringFlag{
-					Name:  "password-file",
-					Usage: "Path of password-file. If provided, password authentication is enabled",
+					Name:  "config-file,f",
+					Usage: "Set configuration file",
 					Value: "",
 				},
 				cli.StringFlag{
+					Name:  "address,a",
+					Usage: "Set bind address of connection",
+					Value: "127.0.0.1:20022",
+				},
+				cli.StringFlag{
+					Name:  "password-file,p",
+					Usage: "Set password-file.",
+					Value: "",
+				},
+				cli.StringFlag{
+					Name:  "server-key,s",
+					Usage: "Set server key file",
+					Value: "./server.key",
+				},
+				cli.StringFlag{
 					Name:  "authorized-keys,k",
-					Usage: "Path of authorized_keys file",
+					Usage: "Set authorized_keys file",
 					Value: "~/.ssh/authorized_keys",
 				},
 			},
-			ArgsUsage: "<container>",
-			Action:    server,
+
+			HideHelp: true,
+			Action:   server,
 		},
 
 		cli.Command{
@@ -71,10 +91,10 @@ func main() {
 	}
 }
 
-func server(c *cli.Context) (err error) {
+func server(ctx *cli.Context) (err error) {
 	// log
 	l := logrus.New()
-	if c.Bool("debug") {
+	if ctx.Bool("debug") {
 		enableDebugTransport()
 		l.SetLevel(logrus.DebugLevel)
 	} else {
@@ -82,17 +102,25 @@ func server(c *cli.Context) (err error) {
 	}
 	log = logrus.NewEntry(l)
 
-	opts := ConfigInitOpts{}
-	opts.FromContext(c)
+	// intialize configuration
+	c := Config{}
+	if ctx.String("config-file") != "" {
+		if err = c.LoadFromFile(ctx.String("config-file")); err != nil {
+			return err
+		}
+	} else {
+		if err = c.LoadFromContext(ctx); err != nil {
+			return err
+		}
+	}
 
-	conf := Config{}
-	if err = conf.Init(opts); err != nil {
+	if err = c.Init(); err != nil {
 		return err
 	}
 
 	log.Infof("Starting SFTP server")
 
-	return StartServer(conf)
+	return StartServer(c)
 }
 
 func genPassword(c *cli.Context) (err error) {

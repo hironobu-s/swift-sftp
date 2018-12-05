@@ -1,0 +1,29 @@
+# Container name
+container = "ojs-test-container"
+
+# Create container if not exist
+create_container = true
+
+# Bind address
+bind_address = "127.0.0.1:20022"
+
+# File name of server key
+server_key = "server.key"
+
+# File name of authorized key list
+authorized_keys = "misc/testing/authorized_keys"
+
+# File name of password list.
+# if blank, The password authentication methods will be disabled.
+password_file = ""
+
+# OpenStack configurations
+os_identity_endpoint = "https://identity.tyo1.conoha.io/v2.0"
+os_user_id           = "test_user_id"
+os_username          = "test_username"
+os_password          = "test_password"
+os_domain_id         = "test_domain_id"
+os_domain_name       = "test_domain_name"
+os_tenant_id         = "test_tenant_id"
+os_tenant_name       = "test_tenant_name"
+os_region            = "test_region"
