@@ -82,10 +82,10 @@ hironobu:971ec9d21d32fe4f5fb440dc90b522aa804c663aec68c908cbea5fc790f7f15d
 
 ### SFTPサーバーの起動
 
-swift-sftpコマンドの引数にコンテナ名を渡して実行するとSFTPサーバーが起動します。
+swift-sftpコマンドに`-c`オプションでコンテナ名を渡して実行します。
 
 ```shell
-$ swift-sftp server [container-name]
+$ swift-sftp server -c [container-name]
 2018-01-01 00:00:00 [-]  Starting SFTP server
 2018-01-01 00:00:00 [-]  Use container 'https://object-storage.tyo1.conoha.io/v1/[TENANT_ID]/[CONTAINER_NAME]
 2018-01-01 00:00:00 [-]  Listen: localhost:10022
@@ -94,13 +94,13 @@ $ swift-sftp server [container-name]
 `server` は `s` に省略できます。
 
 ```shell
-$ swift-sftp s [container-name]
+$ swift-sftp s -c [container-name]
 ```
 
 外部からの接続を受け付けるには`-a`オプションを使います。
 
 ```shell
-$ swift-sftp s -a 0.0.0.0:10022 [container-name]
+$ swift-sftp s -a 0.0.0.0:10022 -c [container-name]
 2018-01-01 00:00:00 [-]  Starting SFTP server
 2018-01-01 00:00:00 [-]  Use container 'https://object-storage.tyo1.conoha.io/v1/[TENANT_ID]/[CONTAINER_NAME]
 2018-01-01 00:00:00 [-]  Listen: 0.0.0.0:10022
@@ -114,6 +114,13 @@ $ sftp -P 10022 -i [private_key_file] hironobu@localhost
 Connected to localhost.
 sftp>
 ```
+
+# 設定ファイル
+
+`swift-sftp`は設定ファイルをサポートします。`-f`オプションでファイル名を渡してください。設定ファイルのサンプルは下記です。
+
+[sample-config.toml](misc/sample-config.toml)
+
 
 ## ライセンス
 

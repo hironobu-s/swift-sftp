@@ -82,10 +82,10 @@ hironobu:971ec9d21d32fe4f5fb440dc90b522aa804c663aec68c908cbea5fc790f7f15d
 
 ### Starting SFTP server
 
-Providing your container name, and run SFTP server
+Providing your container name with `-c` option, and run SFTP server
 
 ```shell
-$ swift-sftp server [container-name]
+$ swift-sftp server -c [container-name]
 2018-01-01 00:00:00 [-]  Starting SFTP server
 2018-01-01 00:00:00 [-]  Use container 'https://object-storage.tyo1.conoha.io/v1/[TENANT_ID]/[CONTAINER_NAME]
 2018-01-01 00:00:00 [-]  Listen: localhost:10022
@@ -94,13 +94,13 @@ $ swift-sftp server [container-name]
 Also use the short name ``s`` instead of ``server``
 
 ```shell
-$ swift-sftp s [container-name]
+$ swift-sftp s -c [container-name]
 ```
 
 You might want to connect the server from the public network. The server will listen to the specific network address with ``-a``option.
 
 ```shell
-$ swift-sftp s -a 0.0.0.0:10022 [container-name]
+$ swift-sftp s -a 0.0.0.0:10022 -c [container-name]
 2018-01-01 00:00:00 [-]  Starting SFTP server
 2018-01-01 00:00:00 [-]  Use container 'https://object-storage.tyo1.conoha.io/v1/[TENANT_ID]/[CONTAINER_NAME]
 2018-01-01 00:00:00 [-]  Listen: 0.0.0.0:10022
@@ -113,6 +113,12 @@ $ sftp -P 10022 -i [private_key_file] hironobu@localhost
 Connected to localhost.
 sftp>
 ```
+
+## Configuration file
+
+`swift-sftp` also supports the configuration file with `-f` options. 
+
+[sample-config.toml](misc/sample-config.toml)
 
 ## License
 
