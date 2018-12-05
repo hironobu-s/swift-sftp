@@ -15,7 +15,7 @@ authorized_keys = "misc/testing/authorized_keys"
 
 # File name of password list.
 # if blank, The password authentication methods will be disabled.
-password_file = ""
+password_file = "misc/testing/dummypasswd"
 
 # OpenStack configurations
 os_identity_endpoint = "https://identity.tyo1.conoha.io/v2.0"
