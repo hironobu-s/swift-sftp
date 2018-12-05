@@ -37,6 +37,21 @@ func TestMain(m *testing.M) {
 func defaultConfigForTesting() Config {
 	c := Config{}
 	c.LoadFromFile("./misc/testing/test.toml")
+
+	// override test.toml
+	c.Container = "ojs-test-container"
+	c.BindAddress = "127.0.0.1:10022"
+	c.PasswordFilePath = ""
+	c.OsIdentityEndpoint = ""
+	c.OsUserID = ""
+	c.OsUsername = ""
+	c.OsPassword = ""
+	c.OsDomainID = ""
+	c.OsDomainName = ""
+	c.OsTenantID = ""
+	c.OsTenantName = ""
+	c.OsRegion = ""
+
 	if err := c.Init(); err != nil {
 		panic(err)
 	}
