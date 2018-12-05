@@ -10,9 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path/filepath"
-	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli"
@@ -69,12 +67,6 @@ func (c *Config) LoadFromFile(filename string) error {
 }
 
 func (c *Config) Init() (err error) {
-	// temporary directory
-	u, err := user.Current()
-	if err != nil {
-		return err
-	}
-
 	// container
 	if c.Container == "" {
 		return errors.New("Parameter 'container' required")
@@ -82,9 +74,7 @@ func (c *Config) Init() (err error) {
 
 	// All paths in a configuration must be absolute path.
 	if c.ServerKeyPath != "" {
-		// resolve the path including "~" manually
-		path := strings.Replace(c.ServerKeyPath, "~", u.HomeDir, 1)
-		path, err = filepath.Abs(path)
+		path, err := filepath.Abs(c.ServerKeyPath)
 		if err != nil {
 			return err
 		}
@@ -103,8 +93,7 @@ func (c *Config) Init() (err error) {
 	}
 
 	if c.PasswordFilePath != "" {
-		path := strings.Replace(c.PasswordFilePath, "~", u.HomeDir, 1)
-		path, err = filepath.Abs(path)
+		path, err := filepath.Abs(c.PasswordFilePath)
 		if err != nil {
 			return err
 		}
@@ -115,8 +104,7 @@ func (c *Config) Init() (err error) {
 	}
 
 	if c.AuthorizedKeysPath != "" {
-		path := strings.Replace(c.AuthorizedKeysPath, "~", u.HomeDir, 1)
-		path, err = filepath.Abs(path)
+		path, err := filepath.Abs(c.AuthorizedKeysPath)
 		if err != nil {
 			return err
 		}
