@@ -59,7 +59,7 @@ func (s *Swift) Init() (err error) {
 			if err = s.CreateContainer(); err != nil {
 				return fmt.Errorf("Couldn't create container. [%s]", err)
 			}
-			log.Debugf("Create container [name=%s]", s.config.Container)
+			log.Infof("Create container '%s'", s.config.Container)
 
 		} else {
 			return fmt.Errorf("Container '%s' does not exist.", s.config.Container)
