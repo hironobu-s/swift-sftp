@@ -14,7 +14,7 @@ server_key = "/etc/swift-sftp/server.key"
 authorized_keys = "/etc/swift-sftp/authorized_keys"
 
 # File name of password list.
-# if blank, The password authentication methods will be disabled.
+# if blank, password authentication methods will be disabled.
 password_file = ""
 
 # OpenStack configurations
