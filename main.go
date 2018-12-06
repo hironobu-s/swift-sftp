@@ -11,7 +11,10 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-var log *logrus.Entry
+var (
+	log     *logrus.Entry
+	version string
+)
 
 func main() {
 	app := cli.NewApp()
@@ -19,7 +22,7 @@ func main() {
 	app.Author = "Hironobu Saito"
 	app.Usage = "SFTP server for OpenStack Swift"
 
-	app.Version = "1.0"
+	app.Version = version
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name:      "server",

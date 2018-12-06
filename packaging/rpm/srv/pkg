@@ -1,0 +1,11 @@
+TOPDIR=~/rpm
+cd /srv
+VERSION=`./swift-sftp -v | tr -d "swift\-sftp version"`
+cp swift-sftp         $TOPDIR
+cp swift-sftp.spec    $TOPDIR
+cp swift-sftp.conf    $TOPDIR   
+cp swift-sftp.service $TOPDIR
+cp authorized_keys    $TOPDIR
+cd $TOPDIR
+rpmbuild --clean  -ba swift-sftp.spec --define "%dist .el7" --define "_version $VERSION"
+

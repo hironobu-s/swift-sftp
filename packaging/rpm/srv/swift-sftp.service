@@ -1,0 +1,11 @@
+[Unit]
+Description = swift-sftp server
+After=network.target
+
+[Service]
+ExecStart = /usr/sbin/swift-sftp server -f /etc/swift-sftp/swift-sftp.conf
+Restart = always
+Type = simple
+
+[Install]
+WantedBy = multi-user.target
