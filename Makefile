@@ -27,6 +27,10 @@ rpm: linux
 	docker run -ti --rm -v `pwd`/packaging/rpm/srv/:/srv/ -v `pwd`/packaging/rpm/rpm:/home/builder/rpm:rw rpmbuild/centos7
 	rm -f `pwd`packaging/rpm/srv/swift-sftp
 
+deb: linux
+	cd packaging/deb; dpkg-buildpackage -B -tc
+#       cd packaging; dput -ol ppa:hironobu-s/swift-sftp swift-sftp_1.1_amd64.changes
+
 clean:
 	rm -rf $(BINDIR)
 
