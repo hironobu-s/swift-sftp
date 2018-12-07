@@ -1,0 +1,5 @@
+swift-sftp (1.1) unstable; urgency=low
+
+  * Initial release.
+
+ -- Hironobu Saito <hiro@hironobu.org>  Sat, 01 Dec 2018 00:00:00 +0900

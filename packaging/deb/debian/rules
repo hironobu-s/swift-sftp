@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+include /usr/share/cdbs/1/rules/debhelper.mk 
+
+install/swift-sftp::
+	cp ../../bin/linux/swift-sftp swift-sftp.static
+	install -pd $(DEB_DESTDIR)/usr/sbin/
+	install -pd $(DEB_DESTDIR)/etc/swift-sftp
+	install -pd $(DEB_DESTDIR)/usr/lib/systemd/user
+	install -pm 755 swift-sftp.static $(DEB_DESTDIR)/usr/sbin/swift-sftp.static
+	install -pm 600 swift-sftp.conf $(DEB_DESTDIR)/etc/swift-sftp
+	install -pm 600 authorized_keys $(DEB_DESTDIR)/etc/swift-sftp
+	install -pm 644 swift-sftp.service $(DEB_DESTDIR)/usr/lib/systemd/user
+	cd $(DEB_DESTDIR)/usr/sbin; ln -s swift-sftp.static swift-sftp

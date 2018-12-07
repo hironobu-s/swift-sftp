@@ -1,0 +1,12 @@
+Source: swift-sftp
+Maintainer: Hironobu Saito <hiro@hironobu.org>
+Section: net
+Priority: optional
+Homepage: https://github.com/hironobu-s/swift-sftp
+Build-Depends: cdbs, debhelper
+Standards-Version: 1.1
+
+Package: swift-sftp
+Architecture: amd64
+Description: SFTP server for OpenStack Swift Object Storage
+ You can control Object Storage through common SFTP client.
