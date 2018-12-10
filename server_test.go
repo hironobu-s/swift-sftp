@@ -124,7 +124,7 @@ func TestInitServerPasswordAuth(t *testing.T) {
 
 	c.PasswordFilePath = filename
 
-	// make sure that password authentication is dnabled after creating password file
+	// make sure that password authentication is enabled after creating password file
 	sConf, _, err := initServer(c)
 	if sConf.PasswordCallback == nil {
 		t.Fatal("Password authentication should be enabled")
