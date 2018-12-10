@@ -10,15 +10,14 @@ setup:
 	dep ensure
 
 windows:
-	GOOS=$@ GOARCH=$(GOARCH) CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "-X main.version=$(VERSION)" -o $(BINDIR)/$@/$(NAME).exe
+	GOOS=$@ GOARCH=$(GOARCH) CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "-X main.version=$(VERSION)" -o $(BINDIR)/$@/$(NAME)-$(VERSION)/$(NAME).exe
+	cp misc/swift-sftp.conf bin/$@
 
-darwin:
-	GOOS=$@ GOARCH=$(GOARCH) CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "-X main.version=$(VERSION)" -o $(BINDIR)/$@/$(NAME)
-	cd bin/$@; gzip -c $(NAME) > $(NAME)-osx.$(GOARCH).gz
-
-linux:
-	GOOS=$@ GOARCH=$(GOARCH) CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "-X main.version=$(VERSION)" -o $(BINDIR)/$@/$(NAME)
-	cd bin/$@; gzip -c $(NAME) > $(NAME)-linux.$(GOARCH).gz
+darwin linux: 
+	$(eval BUILD_DIR := $(BINDIR)/$@/$(NAME)-$(VERSION))
+	GOOS=$@ GOARCH=$(GOARCH) CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/$(NAME)
+	cp misc/swift-sftp.conf $(BUILD_DIR)
+	cd $(BUILD_DIR)/../; tar zcf $(NAME)-$(VERSION)-$@.$(GOARCH).tgz $(NAME)-$(VERSION)
 
 rpm: linux
 	rm -rf packaging/rpm/rpm
