@@ -3,11 +3,9 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/sha256"
 	"io"
 	"io/ioutil"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 )
@@ -64,22 +62,25 @@ func TestReaderDownload(t *testing.T) {
 	}
 	r := swiftReader{swift: s, sf: f}
 
-	err = r.download(f.Name())
-	if err != nil {
-		t.Error(err)
-		return
+	downloaded := bytes.NewBuffer(make([]byte, 0, len(data)))
+	var offset int64 = 0
+	buf := make([]byte, 128)
+	for true {
+		n, err := r.ReadAt(buf, offset)
+		if err != nil {
+			break
+		}
+		downloaded.Write(buf[:n])
+		offset += int64(n)
+	}
+	r.Close()
+
+	if bytes.Compare(downloaded.Bytes(), data) != 0 {
+		t.Errorf("Both contents does't matche")
 	}
 
-	downloaded, err := ioutil.ReadFile(filename)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	hash1 := sha256.Sum256(data)
-	hash2 := sha256.Sum256(downloaded)
-	if !reflect.DeepEqual(hash1, hash2) {
-		t.Errorf("Hash values don't matche %s, %s", hash1, hash2)
+	if _, err := os.Stat(r.tmpfile.Name()); err == nil {
+		t.Errorf("Temporary file is sill exist")
 	}
 }
 
