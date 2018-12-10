@@ -21,18 +21,19 @@ linux:
 	cd bin/$@; gzip -c $(NAME) > $(NAME)-linux.$(GOARCH).gz
 
 rpm: linux
-	rm -rf `pwd`/packaging/rpm/rpm
-	mkdir -m 0777 `pwd`/packaging/rpm/rpm
-	cp $(BINDIR)/linux/$(NAME) `pwd`/packaging/rpm/srv
+	rm -rf packaging/rpm/rpm
+	mkdir -m 0777 packaging/rpm/rpm
+	cp $(BINDIR)/linux/$(NAME) packaging/rpm/srv
 	docker run -ti --rm -v `pwd`/packaging/rpm/srv/:/srv/ -v `pwd`/packaging/rpm/rpm:/home/builder/rpm:rw rpmbuild/centos7
-	rm -f `pwd`packaging/rpm/srv/swift-sftp
+	rm -f packaging/rpm/srv/swift-sftp
 
 deb: linux
-	cd packaging/deb; dpkg-buildpackage -B -tc
-#       cd packaging; dput -ol ppa:hironobu-s/swift-sftp swift-sftp_1.1_amd64.changes
+	curl -sL https://github.com/hironobu-s/swift-sftp/archive/latest.tar.gz > packaging/deb/swift-sftp_$(VERSION).orig.tar.gz
+	cd packaging/deb; dpkg-buildpackage -tc
 
 clean:
 	rm -rf $(BINDIR)
+	rm -rf packaging/swift*
 
 test:
 	env ENV=test go test -cover -race -v
