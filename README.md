@@ -1,3 +1,4 @@
+[(日本語版)](README-jp.md)
 
 # swift-sftp
 
