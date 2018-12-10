@@ -1,7 +1,7 @@
 Source: swift-sftp
 Section: net
 Priority: optional
-Maintainer: Hironobu <hiro@hironobu.org>
+Maintainer: Hironobu Saito <hiro@hironobu.org>
 Build-Depends: debhelper (>= 10)
 Standards-Version: 4.1.2
 Homepage: https://github.com/hironobu-s/swift-sftp
