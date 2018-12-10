@@ -24,7 +24,10 @@ rpm: linux
 	rm -rf packaging/rpm/rpm
 	mkdir -m 0777 packaging/rpm/rpm
 	cp $(BINDIR)/linux/$(NAME) packaging/rpm/srv
-	docker run -ti --rm -v `pwd`/packaging/rpm/srv/:/srv/ -v `pwd`/packaging/rpm/rpm:/home/builder/rpm:rw rpmbuild/centos7
+	docker run -ti --rm \
+		-v $(HOME)/.gnupg:/home/builder/.gnupg \
+		-v `pwd`/packaging/rpm/srv/:/srv/ \
+		-v `pwd`/packaging/rpm/rpm:/home/builder/rpm:rw rpmbuild/centos7
 	rm -f packaging/rpm/srv/swift-sftp
 
 deb: linux
