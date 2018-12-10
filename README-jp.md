@@ -19,39 +19,77 @@
 
 ## インストール
 
-GitHub Releaseのページから実行ファイルをダウンロードしてください。
+[GitHub Release](https://github.com/hironobu-s/swift-sftp/releases)から実行ファイルをダウンロードして展開してください。
 
-**Mac OSX**
-
-```shell
-curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp-osx.amd64.gz | zcat > swift-sftp && chmod +x ./swift-sftp
 ```
-
-**Linux(amd64)**
-
-```shell
-curl -sL https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp-linux.amd64.gz | zcat > swift-sftp && chmod +x ./swift-sftp
-```
-
-**Windows(amd64)**
-
-[swift-sftp.exe](https://github.com/hironobu-s/swift-sftp/releases/download/latest/swift-sftp.exe)
-
-**ビルド手順**
-
-```shell
-cd $GOPATH
-go get github.com/hironobu-s/swift-sftp
-cd $GOPATH/src/github.com/hironobu-s/swift-sftp
-make setup
-make
+wget https://github.com/hironobu-s/swift-sftp/releases/download/1.1.1/swift-sftp-1.1.1-linux.amd64.tgz
+tar xf swift-sftp-1.1.1-linux.amd64.tgz
+cd swift-sftp-1.1.1
 ```
 
 ## 使い方
 
-### OpenStack認証
+### 設定ファイルの編集
 
-まずOpenStackの認証情報を設定します。これらの認証情報はswift-sftpがSwiftへアクセスするために使われます。認証情報は環境変数で渡す必要があります。
+ダウンロードしたファイルを展開して、設定ファイル `swift-sftp.conf` を編集します。基本的にデフォルトのままでも動作しますが、OpenStack configurations の部分は環境に合わせて設定する必要があります。
+
+解説は設定ファイル中の[コメント](https://github.com/hironobu-s/swift-sftp/blob/master/misc/swift-sftp.conf)を見てください。
+
+### 公開鍵認証ファイルの準備
+
+次に、swift-sftpのSFTPサーバーにアクセス可能なクライアントを設定します。設定ファイル中の`authorized_keys`です。
+
+```toml
+authorized_keys = "~/.ssh/authorized_keys"
+```
+
+デフォルト値は`~/.ssh/authorized_keys`なので、SSHで認証可能なユーザーはそのままswift-sftpでもアクセス可能になります。必要に応じて変更してください。
+
+
+### SFTPサーバーの起動
+
+swift-sftpコマンドに`-f`オプションで設定ファイル名を渡して起動します。
+
+```shell
+$ ./swift-sftp server -f swift-sftp.conf
+2018-01-01 00:00:00 [-]  Starting SFTP server
+2018-01-01 00:00:00 [-]  Use container 'https://object-storage.tyo1.conoha.io/v1/[TENANT_ID]/[CONTAINER_NAME]
+2018-01-01 00:00:00 [-]  Listen: localhost:10022
+```
+
+`server` は `s` に省略できます。
+
+```shell
+$ ./swift-sftp s -f swift-sftp.conf
+```
+
+サーバーが起動したら、SFTPクライアントから接続します。
+
+```shell
+$ sftp -P 10022 -i [private_key_file] hironobu@localhost
+Connected to localhost.
+sftp>
+```
+
+## 便利な使い方
+
+### 外部からの接続を受け付ける
+
+設定ファイル中の`bind_address`を変更します。
+
+(変更前)
+```toml
+bind_address = "127.0.0.1:10022"
+```
+
+(変更後)
+```toml
+bind_address = "0.0.0.0:10022"
+```
+
+### OpenStack認証について
+
+OpenStackの認証情報は、swift-sftpがSwiftへアクセスするために使われます。設定ファイルでも指定することはできますが、環境変数で渡すこともできます。他のOpenStack CLIツールと一緒に使う場合に便利です。
 
 参考: [OpenStack Docs: Authentication](https://docs.openstack.org/python-openstackclient/pike/cli/authentication.html)
 
@@ -63,13 +101,11 @@ export OS_AUTH_URL=[Identity EndpointのURL]
 export OS_REGION_NAME=[リージョン]
 ```
 
-### swift-sftpの認証
+### パスワード認証を使う
 
-次にswift-sftpのSFTPサーバーにアクセス可能なクライアントを設定します。
+パスワード認証をする場合は、設定ファイル中の`password_file`を変更して、パスワードファイルを指定してください。デフォルトでは無効です。
 
-デフォルトで`($HOME)/.ssh/authorized_keys`ファイルが読み込まれるので、ここに記述されているユーザーは公開鍵認証でアクセスできます。ファイル名は`-k`オプションで変更することもできます。
-
-パスワード認証をする場合は、`--password-file`オプションでパスワードファイルを指定してください(デフォルトでは無効です)。パスワードファイルはユーザー名とハッシュを`:`で区切ったファイルです。ハッシュ値の生成は`gen-password-hash`サブコマンドを利用すると便利です。
+パスワードファイルはユーザー名とハッシュを`:`で区切ったファイルです。ハッシュ値の生成は`gen-password-hash`サブコマンドを利用すると便利です。
 
 ハッシュ値生成とパスワードファイルの作成(ユーザー名:hironobu の場合)
 
@@ -80,47 +116,31 @@ $ cat passwd
 hironobu:971ec9d21d32fe4f5fb440dc90b522aa804c663aec68c908cbea5fc790f7f15d
 ```
 
-### SFTPサーバーの起動
+### コマンドラインオプションを使う
 
-swift-sftpコマンドに`-c`オプションでコンテナ名を渡して実行します。
+設定ファイルを使わず、コマンドラインオプションのみで運用することもできます。`-h`を付けるとヘルプが出ます。
 
+全体のオプションを見る場合
 ```shell
-$ swift-sftp server -c [container-name]
-2018-01-01 00:00:00 [-]  Starting SFTP server
-2018-01-01 00:00:00 [-]  Use container 'https://object-storage.tyo1.conoha.io/v1/[TENANT_ID]/[CONTAINER_NAME]
-2018-01-01 00:00:00 [-]  Listen: localhost:10022
+./swift-sftp -h
 ```
 
-`server` は `s` に省略できます。
-
+サーバーのオプションを見る場合
 ```shell
-$ swift-sftp s -c [container-name]
+./swift-sftp server -h
 ```
 
-外部からの接続を受け付けるには`-a`オプションを使います。
+### 自分でビルドする
+
+`go get` してmakeするだけです。
 
 ```shell
-$ swift-sftp s -a 0.0.0.0:10022 -c [container-name]
-2018-01-01 00:00:00 [-]  Starting SFTP server
-2018-01-01 00:00:00 [-]  Use container 'https://object-storage.tyo1.conoha.io/v1/[TENANT_ID]/[CONTAINER_NAME]
-2018-01-01 00:00:00 [-]  Listen: 0.0.0.0:10022
+cd $GOPATH
+go get github.com/hironobu-s/swift-sftp
+cd $GOPATH/src/github.com/hironobu-s/swift-sftp
+make setup
+make
 ```
-
-
-サーバーが起動したら、SFTPクライアントから接続します。
-
-```shell
-$ sftp -P 10022 -i [private_key_file] hironobu@localhost
-Connected to localhost.
-sftp>
-```
-
-# 設定ファイル
-
-`swift-sftp`は設定ファイルをサポートします。`-f`オプションでファイル名を渡してください。設定ファイルのサンプルは下記です。
-
-[sample-config.toml](misc/sample-config.toml)
-
 
 ## ライセンス
 
