@@ -89,6 +89,11 @@ func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 }
 
 func (r *swiftReader) Close() error {
+	// remove temporary file
+	if r.tmpfile != nil {
+		os.Remove(r.tmpfile.Name())
+	}
+
 	log.Infof("'%s' was sent successfully", r.sf.Name())
 	return nil
 }
@@ -160,6 +165,9 @@ func (w *swiftWriter) Close() error {
 			w.uploadErr = err
 			log.Debugf("Upload: complete with error. [%v]", err)
 		}
+
+		// remove temporary file
+		os.Remove(w.tmpfile.Name())
 
 		log.Infof("'%s' was uploaded successfully", w.sf.Name())
 
