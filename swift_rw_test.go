@@ -82,3 +82,55 @@ func TestReaderDownload(t *testing.T) {
 		t.Errorf("Hash values don't matche %s, %s", hash1, hash2)
 	}
 }
+
+func TestWriterUpload(t *testing.T) {
+	s := swiftForTesting()
+
+	filename := "writer-test.dat"
+	data, err := generateTestFile(filename, 1024*1024)
+	defer func() {
+		os.Remove(filename)
+	}()
+
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	f := &SwiftFile{
+		objectname: filename,
+		size:       0,
+		modtime:    time.Now(),
+	}
+	w := swiftWriter{swift: s, sf: f}
+
+	r := bytes.NewBuffer(data)
+	var offset int64 = 0
+	buf := make([]byte, 128)
+	for true {
+		n, err := r.Read(buf)
+		if err != nil {
+			break
+		}
+		w.WriteAt(buf, offset)
+		offset += int64(n)
+	}
+
+	// object wil be uploaded if close() is called
+	w.Close()
+
+	// download uploaded object and comparet it with local file
+	u, _, err := s.Download(filename)
+	if err != nil {
+		t.Error(err)
+	}
+
+	uploaded, _ := ioutil.ReadAll(u)
+	if bytes.Compare(uploaded, data) != 0 {
+		t.Errorf("Both contents does't matche")
+	}
+
+	if _, err := os.Stat(w.tmpfile.Name()); err == nil {
+		t.Errorf("Temporary file is sill exist")
+	}
+}
