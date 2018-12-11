@@ -25,9 +25,9 @@ Followings are some rescrictions by the gaps of the protocols between HTTPS and 
 Download the archive file from [GitHub Release](https://github.com/hironobu-s/swift-sftp/releases).
 
 ```
-wget https://github.com/hironobu-s/swift-sftp/releases/download/1.1.1/swift-sftp-1.1.1-linux.amd64.tgz
-tar xf swift-sftp-1.1.1-linux.amd64.tgz
-cd swift-sftp-1.1.1
+wget https://github.com/hironobu-s/swift-sftp/releases/download/1.1.2/swift-sftp-1.1.2-linux.amd64.tgz
+tar xf swift-sftp-1.1.2-linux.amd64.tgz
+cd swift-sftp-1.1.2
 ```
 
 ## Quick Start
