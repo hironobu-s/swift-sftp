@@ -34,7 +34,7 @@ func (r *swiftReader) download(tmpFileName string) (err error) {
 	}
 	defer body.Close()
 
-	log.Debugf("Start downloading '%s' (size=%d) from Object Storage", r.sf.Name(), size)
+	log.Debugf("Download '%s' (size=%d) from Object Storage", r.sf.Name(), size)
 	_, err = io.Copy(fw, body)
 	if err != nil {
 		log.Warnf("Error occured during copying [%v]", err.Error())
@@ -47,7 +47,7 @@ func (r *swiftReader) download(tmpFileName string) (err error) {
 
 func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 	if r.tmpfile == nil {
-		log.Infof("Start sending '%s' (size=%d) to client", r.sf.Name(), r.sf.Size())
+		log.Infof("Send '%s' (size=%d) to client", r.sf.Name(), r.sf.Size())
 
 		// Create tmpfile
 		fname, err := createTmpFile()
@@ -123,7 +123,7 @@ func (w *swiftWriter) upload() (err error) {
 
 func (w *swiftWriter) WriteAt(p []byte, off int64) (n int, err error) {
 	if w.tmpfile == nil {
-		log.Infof("Start receiving '%s' from client", w.sf.Name())
+		log.Infof("Receive '%s' from client", w.sf.Name())
 
 		// Create tmpfile
 		fname, err := createTmpFile()
@@ -154,7 +154,7 @@ func (w *swiftWriter) Close() error {
 			return err
 		}
 
-		log.Infof("Start uploading '%s' (size=%d) to Object Storage", w.sf.Name(), s.Size())
+		log.Infof("Upload '%s' (size=%d) to Object Storage", w.sf.Name(), s.Size())
 
 		//go func() {
 		defer func() {
