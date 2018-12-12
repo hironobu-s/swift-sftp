@@ -32,6 +32,24 @@ func StartServer(conf Config) error {
 	if err = swift.Init(); err != nil {
 		return err
 	}
+
+	exists, err := swift.ExistsContainer()
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		if conf.CreateContainerIfNotExists {
+			if err = swift.CreateContainer(); err != nil {
+				return fmt.Errorf("Couldn't create container. [%s]", err)
+			}
+			log.Infof("Create container '%s'", conf.Container)
+
+		} else {
+			return fmt.Errorf("Container '%s' does not exist.", conf.Container)
+		}
+	}
+
 	log.Infof("Use container '%s%s'", swift.SwiftClient.Endpoint, conf.Container)
 
 	// Start server

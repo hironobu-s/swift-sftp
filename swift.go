@@ -35,9 +35,29 @@ func (s *Swift) Init() (err error) {
 	if err != nil {
 		return err
 	}
+	return nil
+}
 
-	exists := false
-	containers.List(s.SwiftClient, containers.ListOpts{}).EachPage(func(p pagination.Page) (bool, error) {
+func (s *Swift) ListContainer() (list []containers.Container, err error) {
+	opts := containers.ListOpts{
+		Full: true,
+	}
+
+	list = make([]containers.Container, 0, 10)
+	containers.List(s.SwiftClient, opts).EachPage(func(page pagination.Page) (bool, error) {
+		cs, err := containers.ExtractInfo(page)
+		if err != nil {
+			return false, err
+		}
+		list = append(list, cs...)
+		return true, nil
+	})
+
+	return list, nil
+}
+
+func (s *Swift) ExistsContainer() (exists bool, err error) {
+	err = containers.List(s.SwiftClient, containers.ListOpts{}).EachPage(func(p pagination.Page) (bool, error) {
 		names, err := containers.ExtractNames(p)
 		if err != nil {
 			return false, err
@@ -54,19 +74,7 @@ func (s *Swift) Init() (err error) {
 		return true, nil
 	})
 
-	if !exists {
-		if s.config.CreateContainerIfNotExists {
-			if err = s.CreateContainer(); err != nil {
-				return fmt.Errorf("Couldn't create container. [%s]", err)
-			}
-			log.Infof("Create container '%s'", s.config.Container)
-
-		} else {
-			return fmt.Errorf("Container '%s' does not exist.", s.config.Container)
-		}
-	}
-
-	return nil
+	return exists, err
 }
 
 func (s *Swift) CreateContainer() (err error) {

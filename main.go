@@ -91,8 +91,39 @@ func main() {
 				},
 			},
 		},
+		cli.Command{
+			Name:      "container",
+			ShortName: "c",
+			Usage:     "Manage containers",
+			Subcommands: []cli.Command{
+				cli.Command{
+					Name:      "list",
+					ShortName: "l",
+					Usage:     "List containers",
+					Action:    listContainer,
+				},
+				cli.Command{
+					Name:      "create",
+					ShortName: "c",
+					Usage:     "create containers",
+					ArgsUsage: "[container]",
+					Action:    createContainer,
+				},
+				cli.Command{
+					Name:      "delete",
+					ShortName: "d",
+					Usage:     "delete containers",
+					ArgsUsage: "[container]",
+					Action:    deleteContainer,
+				},
+			},
+		},
 	}
 
+	// default logger
+	log = logrus.NewEntry(logrus.New())
+
+	// run
 	if err := app.Run(os.Args); err != nil {
 		fmt.Printf("Error: %s\n", err.Error())
 		os.Exit(1)
@@ -105,12 +136,11 @@ func server(ctx *cli.Context) (err error) {
 	if ctx.Bool("debug") {
 		enableDebugTransport()
 		l.SetLevel(logrus.DebugLevel)
-	} else {
 		l.SetFormatter(&SftpLogFormatter{})
 	}
 	log = logrus.NewEntry(l)
 
-	// intialize configuration
+	// initialize config
 	c := Config{}
 	if ctx.String("config-file") != "" {
 		if err = c.LoadFromFile(ctx.String("config-file")); err != nil {
@@ -122,7 +152,8 @@ func server(ctx *cli.Context) (err error) {
 		}
 	}
 
-	if err = c.Init(); err != nil {
+	err = c.Init()
+	if err != nil {
 		return err
 	}
 
