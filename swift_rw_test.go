@@ -60,7 +60,11 @@ func TestReaderDownload(t *testing.T) {
 		size:       0,
 		modtime:    time.Now(),
 	}
-	r := swiftReader{swift: s, sf: f}
+	r := swiftReader{
+		swift:   s,
+		sf:      f,
+		timeout: time.Duration(s.config.SwiftTimeout) * time.Second,
+	}
 
 	downloaded := bytes.NewBuffer(make([]byte, 0, len(data)))
 	var offset int64 = 0

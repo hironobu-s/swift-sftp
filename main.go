@@ -67,6 +67,11 @@ func main() {
 					Usage: "Set authorized_keys file",
 					Value: "~/.ssh/authorized_keys",
 				},
+				cli.IntFlag{
+					Name:  "swift-timeout",
+					Usage: "Set timeout for Swift (sec).",
+					Value: 180,
+				},
 			},
 
 			HideHelp: true,

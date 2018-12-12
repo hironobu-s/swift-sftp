@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,12 +13,15 @@ import (
 
 // swiftReader implements io.ReadAt interface
 type swiftReader struct {
-	swift *Swift
-	sf    *SwiftFile
+	swift   *Swift
+	sf      *SwiftFile
+	timeout time.Duration
 
-	tmpfile          *os.File
-	downloadComplete bool
-	downloadErr      error
+	tmpfile *os.File
+
+	downloadErr  error
+	downloadSize int64
+	readSize     int64
 }
 
 func (r *swiftReader) download(tmpFileName string) (err error) {
@@ -49,6 +54,16 @@ func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 	if r.tmpfile == nil {
 		log.Infof("Send '%s' (size=%d) to client", r.sf.Name(), r.sf.Size())
 
+		// Download size
+		headers, err := r.swift.Get(r.sf.Name())
+		if err != nil {
+			return -1, err
+		}
+		r.downloadSize = headers.ContentLength
+		if r.downloadSize == 0 {
+			return -1, fmt.Errorf("Couldn't detect download size (Missing Content-length header).")
+		}
+
 		// Create tmpfile
 		fname, err := createTmpFile()
 		if err != nil {
@@ -64,28 +79,34 @@ func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 
 		// start download
 		go func() {
-			defer func() {
-				r.downloadComplete = true
-			}()
-
 			if err := r.download(fname); err != nil {
 				r.downloadErr = err
 			}
 		}()
 	}
 
-	n, err = r.tmpfile.ReadAt(p, off)
-	if r.downloadComplete && err == io.EOF {
-		log.Debugf("Send EOF to client. [%s]", r.sf.Name())
-		return n, io.EOF
+	start := time.Now()
+	for {
+		n, err = r.tmpfile.ReadAt(p, off)
+		if n != 0 {
+			r.readSize += int64(n)
+			return n, err
 
-	} else if err == io.EOF {
-		// wait for downloading
-		return n, nil
+		} else if r.readSize == r.downloadSize {
+			log.Debugf("Send EOF to client. [%s]", r.sf.Name())
+			return n, io.EOF
+		}
 
-	} else {
-		return n, err
+		time.Sleep(100 * time.Millisecond)
+		log.Debugf("Wait for downloading. [%s]", r.sf.Name())
+
+		if time.Now().Sub(start) > r.timeout {
+			log.Warnf("Download timeout. [%s]", r.sf.Name())
+			break
+		}
 	}
+
+	return -1, errors.New("Timeout for downloading")
 }
 
 func (r *swiftReader) Close() error {

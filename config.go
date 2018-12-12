@@ -36,6 +36,9 @@ type Config struct {
 	// Container name
 	Container string `toml:"container"`
 
+	// Timeout for downloading and uploading (sec)
+	SwiftTimeout int `toml:"swift_timeout"`
+
 	// Optional parameters for OpenStack
 	// If those are not given, We use environment variables like OS_USERNAME to authenticate the client.
 	OsIdentityEndpoint string `toml:"os_identity_endpoint"`
@@ -56,6 +59,7 @@ func (c *Config) LoadFromContext(ctx *cli.Context) error {
 	c.ServerKeyPath = ctx.String("server-key")
 	c.AuthorizedKeysPath = ctx.String("authorized-keys")
 	c.CreateContainerIfNotExists = ctx.Bool("create-container")
+	c.SwiftTimeout = ctx.Int("swift-timeout")
 
 	return nil
 }
@@ -133,6 +137,11 @@ func (c *Config) Init() (err error) {
 
 	} else {
 		return fmt.Errorf("Authorized keys file is required")
+	}
+
+	// Default timeout
+	if c.SwiftTimeout == 0 {
+		c.SwiftTimeout = 180
 	}
 
 	return nil

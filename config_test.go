@@ -25,6 +25,7 @@ func TestInitFromFile(t *testing.T) {
 		"BindAddress",
 		"AuthorizedKeysPath",
 		"Container",
+		"SwiftTimeout",
 		"OsIdentityEndpoint",
 		"OsUserID",
 		"OsUsername",
@@ -49,6 +50,7 @@ func TestInitFromContext(t *testing.T) {
 	set.String("password-file", "misc/testing/dummypasswd", "")
 	set.String("server-key", "server.key", "")
 	set.String("authorized-keys", "misc/testing/authorized_keys", "")
+	set.Int("swift-timeout", 60, "")
 	set.Parse([]string{
 		"ojs-test-container",
 	})
@@ -66,6 +68,7 @@ func TestInitFromContext(t *testing.T) {
 		"BindAddress",
 		"AuthorizedKeysPath",
 		"Container",
+		"SwiftTimeout",
 	}
 
 	if err := checkInitializedConfig(c, targets); err != nil {
