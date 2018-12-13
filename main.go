@@ -136,6 +136,7 @@ func server(ctx *cli.Context) (err error) {
 	if ctx.Bool("debug") {
 		enableDebugTransport()
 		l.SetLevel(logrus.DebugLevel)
+	} else {
 		l.SetFormatter(&SftpLogFormatter{})
 	}
 	log = logrus.NewEntry(l)
