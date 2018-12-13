@@ -22,9 +22,9 @@
 [GitHub Release](https://github.com/hironobu-s/swift-sftp/releases)から実行ファイルをダウンロードして展開してください。
 
 ```
-wget https://github.com/hironobu-s/swift-sftp/releases/download/v1.1.2/swift-sftp-1.1.2-linux.amd64.tgz
-tar xf swift-sftp-1.1.2-linux.amd64.tgz
-cd swift-sftp-1.1.2
+wget https://github.com/hironobu-s/swift-sftp/releases/download/v1.1.3/swift-sftp-1.1.3-linux.amd64.tgz
+tar xf swift-sftp-1.1.3-linux.amd64.tgz
+cd swift-sftp-1.1.3
 ```
 
 ## 使い方

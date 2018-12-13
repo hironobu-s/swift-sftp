@@ -1,5 +1,5 @@
 [(日本語版)](README-jp.md)
-
+p
 # swift-sftp
 
 `swift-sftp` is an SFTP server that uses [OpenStack Swift Object Storage](https://docs.openstack.org/swift/latest/) as a filesystem. 
@@ -25,9 +25,9 @@ Followings are some rescrictions by the gaps of the protocols between HTTPS and 
 Download the archive file from [GitHub Release](https://github.com/hironobu-s/swift-sftp/releases).
 
 ```
-wget https://github.com/hironobu-s/swift-sftp/releases/download/v1.1.2/swift-sftp-1.1.2-linux.amd64.tgz
-tar xf swift-sftp-1.1.2-linux.amd64.tgz
-cd swift-sftp-1.1.2
+wget https://github.com/hironobu-s/swift-sftp/releases/download/v1.1.3/swift-sftp-1.1.3-linux.amd64.tgz
+tar xf swift-sftp-1.1.3-linux.amd64.tgz
+cd swift-sftp-1.1.3
 ```
 
 ## Quick Start
