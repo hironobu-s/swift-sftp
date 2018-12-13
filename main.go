@@ -105,14 +105,14 @@ func main() {
 				cli.Command{
 					Name:      "create",
 					ShortName: "c",
-					Usage:     "create containers",
+					Usage:     "create container",
 					ArgsUsage: "[container]",
 					Action:    createContainer,
 				},
 				cli.Command{
 					Name:      "delete",
 					ShortName: "d",
-					Usage:     "delete containers",
+					Usage:     "delete container",
 					ArgsUsage: "[container]",
 					Action:    deleteContainer,
 				},
