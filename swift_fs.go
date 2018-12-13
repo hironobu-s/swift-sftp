@@ -19,9 +19,7 @@ const (
 type SwiftFS struct {
 	log *logrus.Entry
 
-	lock    sync.Mutex
-	mockErr error
-
+	lock         sync.Mutex
 	swift        *Swift
 	waitReadings []*SwiftFile
 	waitWritings []*SwiftFile
@@ -40,48 +38,59 @@ func (fs *SwiftFS) SetLogger(clog *logrus.Entry) {
 	fs.log = clog
 }
 
-func (fs *SwiftFS) debug(r *sftp.Request) {
-	if r.Target != "" {
-		fs.log.Debugf("%s %s (target=%s)", r.Method, r.Filepath, r.Target)
-	} else {
-		fs.log.Debugf("%s %s", r.Method, r.Filepath)
-	}
-}
-
 func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
-	fs.debug(r)
-
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
 
 	f, err := fs.lookup(r.Filepath)
-	if err != nil {
-		return nil, err
+	if err != nil || f == nil {
+		fs.log.Infof("%s %s", r.Method, r.Filepath)
+
+		fs.log.Warnf("%s %s", r.Filepath, err.Error())
+		return nil, sftp.ErrSshFxFailure
 
 	} else if f == nil {
-		return nil, fmt.Errorf("File not found. [%s]", r.Filepath)
+		fs.log.Infof("%s %s", r.Method, r.Filepath)
+
+		err = fmt.Errorf("File not found. [%s]", r.Filepath)
+		fs.log.Warnf("%s %s", r.Filepath, err.Error())
+		return nil, sftp.ErrSshFxFailure
 	}
+
+	fs.log.Infof("%s %s (size=%d)", r.Method, r.Filepath, f.Size())
 
 	reader := &swiftReader{
 		log:     fs.log,
 		swift:   fs.swift,
 		sf:      f,
 		timeout: time.Duration(fs.swift.config.SwiftTimeout) * time.Second,
+
+		afterClosed: func(r *swiftReader) {
+			if r.downloadErr != nil {
+				fs.log.Infof("Faild to transfer '%s' [%s]", f.Name(), r.downloadErr)
+			} else {
+				fs.log.Infof("'%s' was successfully transferred", f.Name())
+			}
+		},
 	}
 
 	if err = reader.Begin(); err != nil {
 		reader.Close()
-		return nil, err
+
+		fs.log.Warnf("%s %s", r.Filepath, err.Error())
+		return nil, sftp.ErrSshFxFailure
 	}
+
+	fs.log.Infof("Transferring %s ...", r.Filepath)
 
 	return reader, nil
 }
 
 func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
-	fs.debug(r)
-
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
+
+	fs.log.Infof("%s %s", r.Method, r.Filepath)
 
 	f := &SwiftFile{
 		objectname: r.Filepath[1:], // strip slash
@@ -96,31 +105,44 @@ func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		swift:   fs.swift,
 		sf:      f,
 		timeout: time.Duration(fs.swift.config.SwiftTimeout) * time.Second,
+		afterClosed: func(w *swiftWriter) {
+			if w.uploadErr != nil {
+				fs.log.Infof("Faild to transfer '%s' [%s]", f.Name(), w.uploadErr)
+			} else {
+				fs.log.Infof("'%s' was successfully transferred", f.Name())
+			}
+		},
 	}
 
 	if err := writer.Begin(); err != nil {
-		return nil, err
+		writer.Close()
+
+		fs.log.Warnf("%s %s", r.Filepath, err.Error())
+		return nil, sftp.ErrSshFxFailure
 	}
+
+	fs.log.Infof("Transferring %s ...", r.Filepath)
 
 	return writer, nil
 }
 
 func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
-	fs.debug(r)
-
-	if fs.mockErr != nil {
-		return fs.mockErr
-	}
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
 
-	f, err := fs.lookup(r.Filepath)
-	if err != nil {
-		return err
+	if r.Target != "" {
+		fs.log.Infof("%s %s %s", r.Method, r.Filepath, r.Target)
+	} else {
+		fs.log.Infof("%s %s", r.Method, r.Filepath)
 	}
 
 	switch r.Method {
 	case "Rename":
+		f, err := fs.lookup(r.Filepath)
+		if err != nil {
+			fs.log.Warnf("%s %s", r.Filepath, err.Error())
+			return sftp.ErrSshFxNoSuchFile
+		}
 
 		tf := SwiftFile{
 			objectname: r.Target,
@@ -132,37 +154,41 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 			symlink:    "",
 			isdir:      false,
 		}
-		fs.log.Infof("Rename '%s' to '%s'", f.Name(), target.Name())
 
 		return fs.swift.Rename(f.Name(), target.Name())
 
 	case "Remove":
+		f, err := fs.lookup(r.Filepath)
+		if err != nil {
+			fs.log.Warnf("%s %s", r.Filepath, err.Error())
+			return sftp.ErrSshFxNoSuchFile
+		}
+
 		err = fs.swift.Delete(f.Name())
 		if err != nil {
-			return err
+			fs.log.Warnf("%s %s", r.Filepath, err.Error())
+			return sftp.ErrSshFxFailure
 		}
-		fs.log.Infof("Remove '%s'", f.Name())
 
 	default:
-		fs.log.Debugf("Unsupported operation [method=%s, file=%s]", r.Method, r.Target)
+		fs.log.Warnf("Unsupported operation (method=%s, target=%s)", r.Method, r.Target)
+		return sftp.ErrSshFxOpUnsupported
 	}
 	return nil
 }
 
 func (fs *SwiftFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
-	fs.debug(r)
-
-	if fs.mockErr != nil {
-		return nil, fs.mockErr
-	}
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
+
+	fs.log.Infof("%s %s", r.Method, r.Filepath)
 
 	switch r.Method {
 	case "List":
 		files, err := fs.walk(r.Filepath)
 		if err != nil {
-			return nil, err
+			fs.log.Warnf("%s %s", r.Filepath, err.Error())
+			return nil, sftp.ErrSshFxFailure
 		}
 
 		list := make([]os.FileInfo, 0, len(files))
@@ -174,7 +200,8 @@ func (fs *SwiftFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	case "Stat":
 		f, err := fs.lookup(r.Filepath)
 		if err != nil {
-			return nil, err
+			fs.log.Warnf("%s %s", r.Filepath, err.Error())
+			return nil, sftp.ErrSshFxNoSuchFile
 		}
 		if f != nil {
 			return listerat([]os.FileInfo{f}), nil
@@ -183,7 +210,8 @@ func (fs *SwiftFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		}
 
 	default:
-		fs.log.Debugf("Unsupported operation [method=%s, file=%s]", r.Method, r.Target)
+		fs.log.Warnf("Unsupported operation [method=%s, target=%s]", r.Method, r.Target)
+		return nil, sftp.ErrSshFxOpUnsupported
 	}
 	return nil, nil
 }
