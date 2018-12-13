@@ -28,10 +28,12 @@ type swiftReader struct {
 	downloadErr  error
 	downloadSize int64
 	readSize     int64
+
+	afterClosed func(r *swiftReader)
 }
 
 func (r *swiftReader) Begin() (err error) {
-	r.log.Infof("Send '%s' (size=%d) to client", r.sf.Name(), r.sf.Size())
+	r.log.Debugf("Send '%s' (size=%d) to client", r.sf.Name(), r.sf.Size())
 
 	// Download size
 	headers, err := r.swift.Get(r.sf.Name())
@@ -118,16 +120,15 @@ func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 }
 
 func (r *swiftReader) Close() error {
+	if r.afterClosed != nil {
+		defer r.afterClosed(r)
+	}
+
 	// remove temporary file
 	if r.tmpfile != nil {
 		os.Remove(r.tmpfile.Name())
 	}
 
-	if r.downloadErr != nil {
-		r.log.Infof("Faild to download '%s' [%s]", r.sf.Name(), r.downloadErr)
-	} else {
-		r.log.Infof("'%s' was sent successfully", r.sf.Name())
-	}
 	return nil
 }
 
@@ -143,10 +144,12 @@ type swiftWriter struct {
 	tmpfile        *os.File
 	uploadComplete bool
 	uploadErr      error
+
+	afterClosed func(w *swiftWriter)
 }
 
 func (w *swiftWriter) Begin() (err error) {
-	w.log.Infof("Receive '%s' from client", w.sf.Name())
+	w.log.Debugf("Receive '%s' from client", w.sf.Name())
 
 	// Create tmpfile
 	fname, err := createTmpFile()
@@ -185,6 +188,10 @@ func (w *swiftWriter) WriteAt(p []byte, off int64) (n int, err error) {
 }
 
 func (w *swiftWriter) Close() error {
+	if w.afterClosed != nil {
+		defer w.afterClosed(w)
+	}
+
 	// start uploading
 	if w.tmpfile != nil {
 		s, err := w.tmpfile.Stat()
@@ -192,7 +199,7 @@ func (w *swiftWriter) Close() error {
 			return err
 		}
 
-		w.log.Infof("Upload '%s' (size=%d) to Object Storage", w.sf.Name(), s.Size())
+		w.log.Debugf("Upload '%s' (size=%d) to Object Storage", w.sf.Name(), s.Size())
 
 		//go func() {
 		defer func() {
@@ -210,10 +217,11 @@ func (w *swiftWriter) Close() error {
 		if w.uploadErr != nil {
 			return w.uploadErr
 		}
-		w.log.Infof("'%s' was uploaded successfully", w.sf.Name())
+		w.log.Debugf("'%s' was uploaded successfully", w.sf.Name())
 
 		//}()
 	}
+
 	return nil
 }
 
