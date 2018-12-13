@@ -1,5 +1,5 @@
 [(日本語版)](README-jp.md)
-p
+
 # swift-sftp
 
 `swift-sftp` is an SFTP server that uses [OpenStack Swift Object Storage](https://docs.openstack.org/swift/latest/) as a filesystem. 
@@ -17,8 +17,7 @@ Followings are some rescrictions by the gaps of the protocols between HTTPS and 
 
 * Doesn't support `chmod` command
 * Doesn't support any operations for directories
-* It takes twice times more time than uploading the object to Object Storage directly
-
+* It takes 2x more upload times than direct uploading. The file will be uploaded to Object Storage after the SFTP client transfer the file to swift-sftp server.
 
 ## Install
 
