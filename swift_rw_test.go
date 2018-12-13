@@ -60,11 +60,16 @@ func TestReaderDownload(t *testing.T) {
 		size:       0,
 		modtime:    time.Now(),
 	}
+
 	r := swiftReader{
 		log:     log,
 		swift:   s,
 		sf:      f,
 		timeout: time.Duration(s.config.SwiftTimeout) * time.Second,
+	}
+
+	if err = r.Begin(); err != nil {
+		t.Error(err)
 	}
 
 	downloaded := bytes.NewBuffer(make([]byte, 0, len(data)))
@@ -108,11 +113,16 @@ func TestWriterUpload(t *testing.T) {
 		size:       0,
 		modtime:    time.Now(),
 	}
+
 	w := swiftWriter{
 		log:     log,
 		swift:   s,
 		sf:      f,
 		timeout: time.Duration(s.config.SwiftTimeout) * time.Second,
+	}
+
+	if err = w.Begin(); err != nil {
+		t.Error(err)
 	}
 
 	r := bytes.NewBuffer(data)

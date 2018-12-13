@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -22,10 +23,46 @@ type swiftReader struct {
 	timeout time.Duration
 
 	// Not required
+	m            sync.Mutex
 	tmpfile      *os.File
 	downloadErr  error
 	downloadSize int64
 	readSize     int64
+}
+
+func (r *swiftReader) Begin() (err error) {
+	r.log.Infof("Send '%s' (size=%d) to client", r.sf.Name(), r.sf.Size())
+
+	// Download size
+	headers, err := r.swift.Get(r.sf.Name())
+	if err != nil {
+		return err
+	}
+	r.downloadSize = headers.ContentLength
+	if r.downloadSize == 0 {
+		return fmt.Errorf("Couldn't detect download size (Missing Content-length header).")
+	}
+
+	// Create tmpfile
+	fname, err := createTmpFile()
+	if err != nil {
+		return err
+	}
+
+	// Open tmpfile
+	r.tmpfile, err = os.OpenFile(fname, os.O_RDONLY, 0000)
+	if err != nil {
+		r.log.Warnf("Couldn't open tmpfile. [%v]", err.Error())
+		return err
+	}
+
+	// start download
+	go func() {
+		if err := r.download(fname); err != nil {
+			r.downloadErr = err
+		}
+	}()
+	return nil
 }
 
 func (r *swiftReader) download(tmpFileName string) (err error) {
@@ -55,40 +92,6 @@ func (r *swiftReader) download(tmpFileName string) (err error) {
 }
 
 func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
-	if r.tmpfile == nil {
-		r.log.Infof("Send '%s' (size=%d) to client", r.sf.Name(), r.sf.Size())
-
-		// Download size
-		headers, err := r.swift.Get(r.sf.Name())
-		if err != nil {
-			return -1, err
-		}
-		r.downloadSize = headers.ContentLength
-		if r.downloadSize == 0 {
-			return -1, fmt.Errorf("Couldn't detect download size (Missing Content-length header).")
-		}
-
-		// Create tmpfile
-		fname, err := createTmpFile()
-		if err != nil {
-			return -1, err
-		}
-
-		// Open tmpfile
-		r.tmpfile, err = os.OpenFile(fname, os.O_RDONLY, 0000)
-		if err != nil {
-			r.log.Warnf("Couldn't open tmpfile. [%v]", err.Error())
-			return -1, err
-		}
-
-		// start download
-		go func() {
-			if err := r.download(fname); err != nil {
-				r.downloadErr = err
-			}
-		}()
-	}
-
 	start := time.Now()
 	for {
 		n, err = r.tmpfile.ReadAt(p, off)
@@ -110,7 +113,8 @@ func (r *swiftReader) ReadAt(p []byte, off int64) (n int, err error) {
 		}
 	}
 
-	return -1, errors.New("Timeout for downloading")
+	r.downloadErr = errors.New("Timeout for downloading")
+	return -1, r.downloadErr
 }
 
 func (r *swiftReader) Close() error {
@@ -119,7 +123,11 @@ func (r *swiftReader) Close() error {
 		os.Remove(r.tmpfile.Name())
 	}
 
-	r.log.Infof("'%s' was sent successfully", r.sf.Name())
+	if r.downloadErr != nil {
+		r.log.Infof("Faild to download '%s' [%s]", r.sf.Name(), r.downloadErr)
+	} else {
+		r.log.Infof("'%s' was sent successfully", r.sf.Name())
+	}
 	return nil
 }
 
@@ -137,6 +145,24 @@ type swiftWriter struct {
 	uploadErr      error
 }
 
+func (w *swiftWriter) Begin() (err error) {
+	w.log.Infof("Receive '%s' from client", w.sf.Name())
+
+	// Create tmpfile
+	fname, err := createTmpFile()
+	if err != nil {
+		return err
+	}
+
+	// Open tmpfile
+	w.tmpfile, err = os.OpenFile(fname, os.O_WRONLY, 0000)
+	if err != nil {
+		w.log.Warnf("Couldn't open tmpfile. [%v]", err.Error())
+		return err
+	}
+	return nil
+}
+
 func (w *swiftWriter) upload() (err error) {
 	fname := w.tmpfile.Name()
 	w.log.Debugf("Upload: create tmpfile. [%s]", fname)
@@ -151,23 +177,6 @@ func (w *swiftWriter) upload() (err error) {
 }
 
 func (w *swiftWriter) WriteAt(p []byte, off int64) (n int, err error) {
-	if w.tmpfile == nil {
-		w.log.Infof("Receive '%s' from client", w.sf.Name())
-
-		// Create tmpfile
-		fname, err := createTmpFile()
-		if err != nil {
-			return -1, err
-		}
-
-		// Open tmpfile
-		w.tmpfile, err = os.OpenFile(fname, os.O_WRONLY, 0000)
-		if err != nil {
-			w.log.Warnf("Couldn't open tmpfile. [%v]", err.Error())
-			return -1, err
-		}
-	}
-
 	n, err = w.tmpfile.WriteAt(p, off)
 	if err != nil {
 		w.log.Debugf("%v", err)
@@ -198,6 +207,9 @@ func (w *swiftWriter) Close() error {
 		// remove temporary file
 		os.Remove(w.tmpfile.Name())
 
+		if w.uploadErr != nil {
+			return w.uploadErr
+		}
 		w.log.Infof("'%s' was uploaded successfully", w.sf.Name())
 
 		//}()

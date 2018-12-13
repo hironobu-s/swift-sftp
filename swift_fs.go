@@ -62,13 +62,19 @@ func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		return nil, fmt.Errorf("File not found. [%s]", r.Filepath)
 	}
 
-	to := time.Duration(fs.swift.config.SwiftTimeout) * time.Second
-	return &swiftReader{
+	reader := &swiftReader{
 		log:     fs.log,
 		swift:   fs.swift,
 		sf:      f,
-		timeout: to,
-	}, nil
+		timeout: time.Duration(fs.swift.config.SwiftTimeout) * time.Second,
+	}
+
+	if err = reader.Begin(); err != nil {
+		reader.Close()
+		return nil, err
+	}
+
+	return reader, nil
 }
 
 func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
@@ -85,13 +91,18 @@ func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		isdir:      false,
 	}
 
-	to := time.Duration(fs.swift.config.SwiftTimeout) * time.Second
-	return &swiftWriter{
+	writer := &swiftWriter{
 		log:     fs.log,
 		swift:   fs.swift,
 		sf:      f,
-		timeout: to,
-	}, nil
+		timeout: time.Duration(fs.swift.config.SwiftTimeout) * time.Second,
+	}
+
+	if err := writer.Begin(); err != nil {
+		return nil, err
+	}
+
+	return writer, nil
 }
 
 func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
