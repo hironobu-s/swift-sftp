@@ -11,6 +11,8 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
@@ -22,7 +24,7 @@ const (
 
 func StartServer(conf Config) error {
 	// Prepare server config and client
-	sConf, client, err := initServer(conf)
+	sConf, err := initServer(conf)
 	if err != nil {
 		return err
 	}
@@ -57,7 +59,7 @@ func StartServer(conf Config) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Listen: %s", conf.BindAddress)
+	log.Infof("Listen: %s", conf.BindAddress)
 
 	for {
 		nConn, err := listener.Accept()
@@ -65,55 +67,77 @@ func StartServer(conf Config) error {
 			return err
 		}
 
-		log.Printf("Connect from %s", nConn.RemoteAddr())
+		var addr string
+		var port string
+		tmp := strings.Split(nConn.RemoteAddr().String(), ":")
+		if len(tmp) == 2 {
+			// IPv4
+			addr = tmp[0]
+			port = tmp[1]
+		} else {
+			// IPv6?
+			tmp := strings.Split(nConn.RemoteAddr().String(), "]:")
+			if len(tmp) == 2 {
+				// IPv4
+				addr = tmp[0][1:]
+				port = tmp[1]
+			} else {
+				addr = nConn.RemoteAddr().String()
+				port = "-"
+			}
+		}
+
+		log.Infof("Connect from %s port %s", addr, port)
 		go func() {
-			err := handleClient(conf, sConf, swift, nConn, client)
+			defer func() {
+				log.Infof("Disconnect from %s port %s", addr, port)
+			}()
+
+			err := handleClient(conf, sConf, swift, nConn)
 			if err == nil || err == io.EOF {
 				return
 			}
 
 			serr, ok := err.(*ssh.ServerAuthError)
 			if !ok {
-				log.Warnf("%s", err)
+				log.Warnf("Auth: %s from %s port %s", err, addr, port)
 				return
 			}
 
 			for _, err = range serr.Errors {
-				log.Warnf("%s", err)
+				log.Warnf("Auth: %s from %s port %s", err, addr, port)
 			}
 		}()
 	}
 }
 
-func initServer(conf Config) (sConf *ssh.ServerConfig, client *Client, err error) {
-	client = &Client{}
-
+func initServer(conf Config) (sConf *ssh.ServerConfig, err error) {
 	sConf = &ssh.ServerConfig{
-		PublicKeyCallback: authPkey(conf, client),
+		PublicKeyCallback: authPkey(conf),
 	}
 
 	// Add password authentication method if password file exists
 	s, err := os.Stat(conf.PasswordFilePath)
 	if err == nil && !s.IsDir() {
-		sConf.PasswordCallback = authPassword(conf, client)
+		sConf.PasswordCallback = authPassword(conf)
 	}
 
 	// host private key
 	pkeyBytes, err := ioutil.ReadFile(conf.ServerKeyPath)
 	if err != nil {
-		return nil, client, err
+		return nil, err
 	}
 
 	pkey, err := ssh.ParsePrivateKey(pkeyBytes)
 	if err != nil {
-		return nil, client, err
+		return nil, err
 	}
 	sConf.AddHostKey(pkey)
 
-	return sConf, client, nil
+	return sConf, nil
 }
 
-func authPkey(conf Config, client *Client) func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Permissions, error) {
+func authPkey(conf Config) func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Permissions, error) {
 	return func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Permissions, error) {
 		authorizedKeysBytes, err := ioutil.ReadFile(conf.AuthorizedKeysPath)
 		if err != nil {
@@ -132,10 +156,6 @@ func authPkey(conf Config, client *Client) func(c ssh.ConnMetadata, pkey ssh.Pub
 		}
 
 		if authorizedKeysMap[string(pkey.Marshal())] {
-			client.SessionID = fmt.Sprintf("%x", c.SessionID())
-			client.Username = c.User()
-			client.RemoteAddr = c.RemoteAddr().String()
-
 			return &ssh.Permissions{
 				// Record the public key used for authentication.
 				Extensions: map[string]string{
@@ -159,7 +179,7 @@ func GenerateHashedPassword(username string, plainPassword []byte) (hashed []byt
 	return hashed
 }
 
-func authPassword(conf Config, client *Client) func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+func authPassword(conf Config) func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 
 	return func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 		f, err := os.Open(conf.PasswordFilePath)
@@ -192,9 +212,6 @@ func authPassword(conf Config, client *Client) func(c ssh.ConnMetadata, password
 			if subtle.ConstantTimeCompare(listUser, []byte(c.User())) == 1 &&
 				subtle.ConstantTimeCompare(listPass, hashed) == 1 {
 				// authorized
-				client.SessionID = fmt.Sprintf("%x", c.SessionID())
-				client.Username = c.User()
-				client.RemoteAddr = c.RemoteAddr().String()
 				return nil, nil
 			}
 		}
@@ -203,28 +220,37 @@ func authPassword(conf Config, client *Client) func(c ssh.ConnMetadata, password
 	}
 }
 
-func handleClient(conf Config, sConf *ssh.ServerConfig, swift *Swift, nConn net.Conn, client *Client) error {
-	_, chans, reqs, err := ssh.NewServerConn(nConn, sConf)
+func handleClient(conf Config, sConf *ssh.ServerConfig, swift *Swift, nConn net.Conn) error {
+	conn, chans, reqs, err := ssh.NewServerConn(nConn, sConf)
 	if err != nil {
 		return err
 	}
 
-	// add some fields based on the client to logger
-	log = log.WithFields(logrus.Fields{
+	// create client
+	client := &Client{
+		SessionID:  fmt.Sprintf("%x", conn.SessionID()),
+		Username:   conn.User(),
+		RemoteAddr: conn.RemoteAddr(),
+		StartedAt:  time.Now(),
+	}
+
+	// logger with client
+	clog := log.WithFields(logrus.Fields{
 		"client": client,
 	})
-	log.Infof("Session opened for %s@%s", client.Username, client.RemoteAddr)
+
+	clog.Infof("Session opened for %s@%s", client.Username, client.RemoteAddr)
 
 	go ssh.DiscardRequests(reqs)
 
 	for nchan := range chans {
 		if nchan.ChannelType() != "session" {
 			msg := fmt.Sprintf("The request was rejected because of unknown channel type. [%s]", nchan.ChannelType())
-			log.Warn(msg)
+			clog.Warn(msg)
 			nchan.Reject(ssh.UnknownChannelType, msg)
 			continue
 		}
-		log.Debugf("Channel is accepted[type=%s]", nchan.ChannelType())
+		clog.Debugf("Channel is accepted[type=%s]", nchan.ChannelType())
 
 		channel, requests, err := nchan.Accept()
 		if err != nil {
@@ -233,7 +259,7 @@ func handleClient(conf Config, sConf *ssh.ServerConfig, swift *Swift, nConn net.
 
 		go func(in <-chan *ssh.Request) {
 			for req := range in {
-				log.Debugf("Handling request [type=%s]", req.Type)
+				clog.Debugf("Handling request [type=%s]", req.Type)
 
 				// We only handle the request that has type of "subsystem".
 				ok := false
@@ -245,12 +271,12 @@ func handleClient(conf Config, sConf *ssh.ServerConfig, swift *Swift, nConn net.
 		}(requests)
 
 		// sftp
-		if err = StartSftpSession(swift, channel); err != nil {
+		if err = StartSftpSession(swift, channel, client); err != nil {
 			return err
 		}
 	}
 
-	log.Infof("Session closed for %s@%s", client.Username, client.RemoteAddr)
+	clog.Infof("Session closed for %s@%s", client.Username, client.RemoteAddr)
 
 	return nil
 }

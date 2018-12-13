@@ -4,13 +4,20 @@ import (
 	"io"
 
 	"github.com/pkg/sftp"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
-func StartSftpSession(swift *Swift, channel ssh.Channel) (err error) {
-	log.Debug("Starting SFTP session.")
+func StartSftpSession(swift *Swift, channel ssh.Channel, client *Client) (err error) {
+	// logger with client
+	clog := log.WithFields(logrus.Fields{
+		"client": client,
+	})
+
+	clog.Debug("Starting SFTP session.")
 
 	fs := NewSwiftFS(swift)
+	fs.SetLogger(clog)
 	handler := sftp.Handlers{fs, fs, fs, fs}
 
 	server := sftp.NewRequestServer(channel, handler)

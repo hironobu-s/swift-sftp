@@ -76,7 +76,7 @@ func swiftForTesting() *Swift {
 
 func TestInitServerServer(t *testing.T) {
 	c := defaultConfigForTesting()
-	sConf, _, err := initServer(c)
+	sConf, err := initServer(c)
 	if err != nil {
 		t.Error(err)
 		return
@@ -97,7 +97,7 @@ func TestInitServerServer(t *testing.T) {
 }
 
 func TestInitServerPasswdFile(t *testing.T) {
-	sConf, _, err := initServer(defaultConfigForTesting())
+	sConf, err := initServer(defaultConfigForTesting())
 	if err != nil {
 		t.Error(err)
 		return
@@ -125,7 +125,7 @@ func TestInitServerPasswordAuth(t *testing.T) {
 	c.PasswordFilePath = filename
 
 	// make sure that password authentication is enabled after creating password file
-	sConf, _, err := initServer(c)
+	sConf, err := initServer(c)
 	if sConf.PasswordCallback == nil {
 		t.Fatal("Password authentication should be enabled")
 	}

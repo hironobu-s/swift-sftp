@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -16,6 +17,8 @@ const (
 
 // SwiftFS implements sftp.Handlers interface.
 type SwiftFS struct {
+	log *logrus.Entry
+
 	lock    sync.Mutex
 	mockErr error
 
@@ -26,17 +29,22 @@ type SwiftFS struct {
 
 func NewSwiftFS(s *Swift) *SwiftFS {
 	fs := &SwiftFS{
+		log:   log,
 		swift: s,
 	}
 
 	return fs
 }
 
+func (fs *SwiftFS) SetLogger(clog *logrus.Entry) {
+	fs.log = clog
+}
+
 func (fs *SwiftFS) debug(r *sftp.Request) {
 	if r.Target != "" {
-		log.Debugf("%s %s (target=%s)", r.Method, r.Filepath, r.Target)
+		fs.log.Debugf("%s %s (target=%s)", r.Method, r.Filepath, r.Target)
 	} else {
-		log.Debugf("%s %s", r.Method, r.Filepath)
+		fs.log.Debugf("%s %s", r.Method, r.Filepath)
 	}
 }
 
@@ -54,9 +62,12 @@ func (fs *SwiftFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		return nil, fmt.Errorf("File not found. [%s]", r.Filepath)
 	}
 
+	to := time.Duration(fs.swift.config.SwiftTimeout) * time.Second
 	return &swiftReader{
-		swift: fs.swift,
-		sf:    f,
+		log:     fs.log,
+		swift:   fs.swift,
+		sf:      f,
+		timeout: to,
 	}, nil
 }
 
@@ -74,9 +85,12 @@ func (fs *SwiftFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		isdir:      false,
 	}
 
+	to := time.Duration(fs.swift.config.SwiftTimeout) * time.Second
 	return &swiftWriter{
-		swift: fs.swift,
-		sf:    f,
+		log:     fs.log,
+		swift:   fs.swift,
+		sf:      f,
+		timeout: to,
 	}, nil
 }
 
@@ -107,7 +121,7 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 			symlink:    "",
 			isdir:      false,
 		}
-		log.Infof("Rename '%s' to '%s'", f.Name(), target.Name())
+		fs.log.Infof("Rename '%s' to '%s'", f.Name(), target.Name())
 
 		return fs.swift.Rename(f.Name(), target.Name())
 
@@ -116,10 +130,10 @@ func (fs *SwiftFS) Filecmd(r *sftp.Request) error {
 		if err != nil {
 			return err
 		}
-		log.Infof("Remove '%s'", f.Name())
+		fs.log.Infof("Remove '%s'", f.Name())
 
 	default:
-		log.Debugf("Unsupported operation [method=%s, file=%s]", r.Method, r.Target)
+		fs.log.Debugf("Unsupported operation [method=%s, file=%s]", r.Method, r.Target)
 	}
 	return nil
 }
@@ -158,7 +172,7 @@ func (fs *SwiftFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		}
 
 	default:
-		log.Debugf("Unsupported operation [method=%s, file=%s]", r.Method, r.Target)
+		fs.log.Debugf("Unsupported operation [method=%s, file=%s]", r.Method, r.Target)
 	}
 	return nil, nil
 }
@@ -216,7 +230,7 @@ func (fs *SwiftFS) lookup(path string) (*SwiftFile, error) {
 
 // To synchronize objects on object storage and fs.files
 func (fs *SwiftFS) allFiles() ([]*SwiftFile, error) {
-	log.Debugf("Updating file list...")
+	fs.log.Debugf("Updating file list...")
 
 	// Get object list from object storage
 	objs, err := fs.swift.List()

@@ -61,6 +61,7 @@ func TestReaderDownload(t *testing.T) {
 		modtime:    time.Now(),
 	}
 	r := swiftReader{
+		log:     log,
 		swift:   s,
 		sf:      f,
 		timeout: time.Duration(s.config.SwiftTimeout) * time.Second,
@@ -107,7 +108,12 @@ func TestWriterUpload(t *testing.T) {
 		size:       0,
 		modtime:    time.Now(),
 	}
-	w := swiftWriter{swift: s, sf: f}
+	w := swiftWriter{
+		log:     log,
+		swift:   s,
+		sf:      f,
+		timeout: time.Duration(s.config.SwiftTimeout) * time.Second,
+	}
 
 	r := bytes.NewBuffer(data)
 	var offset int64 = 0
