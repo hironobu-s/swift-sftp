@@ -178,7 +178,11 @@ func genPassword(c *cli.Context) (err error) {
 	}
 	fmt.Println()
 
-	hashed := GenerateHashedPassword(username, password)
+	hashed, err := generateHashedPassword(username, password)
+	if err != nil {
+		return err
+	}
+
 	if c.Bool("format") {
 		fmt.Fprintf(os.Stdout, "%s:%s", username, hashed)
 	} else {

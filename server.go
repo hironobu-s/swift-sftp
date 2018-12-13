@@ -2,10 +2,7 @@ package main
 
 import (
 	"bufio"
-	"bytes"
-	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,11 +12,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ssh"
-)
-
-const (
-	PasswordSalt = "swift-sftp"
 )
 
 func StartServer(conf Config) error {
@@ -167,18 +161,6 @@ func authPkey(conf Config) func(c ssh.ConnMetadata, pkey ssh.PublicKey) (*ssh.Pe
 	}
 }
 
-func GenerateHashedPassword(username string, plainPassword []byte) (hashed []byte) {
-	buf := bytes.NewBuffer(make([]byte, len(username)+len(plainPassword)+len(PasswordSalt)))
-	buf.WriteString(username)
-	buf.Write(plainPassword)
-	buf.WriteString(PasswordSalt)
-
-	b := sha256.Sum256(buf.Bytes())
-	hashed = make([]byte, 64)
-	hex.Encode(hashed, b[:])
-	return hashed
-}
-
 func authPassword(conf Config) func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 
 	return func(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
@@ -208,9 +190,8 @@ func authPassword(conf Config) func(c ssh.ConnMetadata, password []byte) (*ssh.P
 				}
 			}
 
-			hashed := GenerateHashedPassword(c.User(), password)
-			if subtle.ConstantTimeCompare(listUser, []byte(c.User())) == 1 &&
-				subtle.ConstantTimeCompare(listPass, hashed) == 1 {
+			pwMatch := comparePasswords(listPass, password)
+			if subtle.ConstantTimeCompare(listUser, []byte(c.User())) == 1 && pwMatch == nil {
 				// authorized
 				return nil, nil
 			}
@@ -218,6 +199,14 @@ func authPassword(conf Config) func(c ssh.ConnMetadata, password []byte) (*ssh.P
 
 		return nil, fmt.Errorf("password rejected for %q", c.User())
 	}
+}
+
+func generateHashedPassword(username string, plainPassword []byte) (hashed []byte, err error) {
+	return bcrypt.GenerateFromPassword([]byte(plainPassword), bcrypt.DefaultCost)
+}
+
+func comparePasswords(hashedPassword, plainPassword []byte) error {
+	return bcrypt.CompareHashAndPassword(hashedPassword, plainPassword)
 }
 
 func handleClient(conf Config, sConf *ssh.ServerConfig, swift *Swift, nConn net.Conn) error {
